@@ -1,0 +1,182 @@
+import { EXCLUDE, INCLUDE, INVESTMENT, QUOTE, THRESHOLD } from "../config.js";
+import { IAccount } from "../interface/IAccount.js";
+import { IDistributionDelta } from "../interface/IDistributionDelta.js";
+import { IInstrument } from "../interface/IInstrument.js";
+import { ITicker } from "../interface/ITicker.js";
+
+export class Calculation {
+    constructor() {}
+
+    public getTradableCoins(instruments: IInstrument[], stablecoins: string[], coins: string[]) {
+        const tradableCoins: string[] = [];
+
+        for (const instrument of instruments) {
+            if (instrument.quote_currency.toUpperCase() !== QUOTE.toUpperCase()) {
+                continue;
+            }
+
+            if (EXCLUDE.includes(instrument.base_currency.toUpperCase())) {
+                continue;
+            }
+
+            const stablecoin = stablecoins.find((row) => {
+                return row === instrument.base_currency.toUpperCase();
+            });
+
+            if (stablecoin) {
+                continue;
+            }
+
+            const coin = coins.find((row) => {
+                return row === instrument.base_currency.toUpperCase();
+            });
+
+            if (coin) {
+                tradableCoins.push(coin);
+            }
+        }
+
+        for (const coin of INCLUDE) {
+            const tradableCoin = tradableCoins.find((row) => {
+                return row === coin;
+            });
+
+            if (!tradableCoin) {
+                tradableCoins.push(coin);
+            }
+        }
+
+        return tradableCoins;
+    }
+
+    public getSharePerCoin(portfolioWorth: number, coins: string[]) {
+        return portfolioWorth / coins.length;
+    }
+
+    public getPortfolioWorth(balance: IAccount[], tradableCoins: string[], tickers: ITicker[]) {
+        let portfolioWorth = 0;
+
+        for (const tradableCoin of tradableCoins) {
+            const coin = balance.find((row) => {
+                return row.currency.toUpperCase() === tradableCoin;
+            });
+
+            if (!coin) {
+                continue;
+            }
+
+            const ticker = tickers.find((row) => {
+                return row.i.split("_")[0].toUpperCase() === coin.currency.toUpperCase() && row.i.split("_")[1].toUpperCase() === QUOTE.toUpperCase();
+            });
+
+            if (!ticker) {
+                continue;
+            }
+
+            portfolioWorth += coin.available * ticker.b;
+        }
+
+        return portfolioWorth;
+    }
+
+    public getDistributionDelta(sharePerCoin: number, tradableCoins: string[], balance: IAccount[], tickers: ITicker[]) {
+        const deviations: IDistributionDelta[] = [];
+
+        for (const tradableCoin of tradableCoins) {
+            const coin = balance.find((row) => {
+                return row.currency.toUpperCase() === tradableCoin;
+            });
+
+            if (!coin) {
+                continue;
+            }
+
+            const ticker = tickers.find((row) => {
+                return row.i.split("_")[0].toUpperCase() === coin.currency.toUpperCase() && row.i.split("_")[1].toUpperCase() === QUOTE.toUpperCase();
+            });
+
+            if (!ticker) {
+                continue;
+            }
+
+            const deviation = (coin.available * ticker.b) - sharePerCoin;
+
+            deviations.push({
+                coin: tradableCoin,
+                deviation: deviation
+            });
+        }
+
+        return deviations;
+    }
+
+    public getAvailableFunds(balance: IAccount[]) {
+        const funds = balance.find((row) => {
+            return row.currency.toUpperCase() === QUOTE.toUpperCase();
+        });
+
+        if (!funds) {
+            return 0;
+        }
+
+        return funds.available;
+    }
+
+    public getInvestmentWorth(tradableCoins: string[]) {
+        return tradableCoins.length * INVESTMENT;
+    }
+
+    public getLowestPerformer(distributionDelta: IDistributionDelta[], ignoreList: string[]) {
+        let lowestPerformer: IDistributionDelta = null;
+
+        for (const delta of distributionDelta) {
+            if (ignoreList.includes(delta.coin)) {
+                continue;
+            }
+
+            if (!lowestPerformer) {
+                lowestPerformer = delta;
+                continue;
+            }
+            
+            if (delta.deviation < lowestPerformer.deviation) {
+                lowestPerformer = delta;
+            }
+        }
+
+        return lowestPerformer;
+    }
+
+    public getUnderperformerWorth(sharePerCoin: number, distributionDelta: IDistributionDelta[]) {
+        let underperformerWorth = 0;
+
+        for (const delta of distributionDelta) {
+            const percentageDelta = (((delta.deviation + sharePerCoin) / sharePerCoin) - 1) * 100;
+
+            if (percentageDelta < 0 && Math.abs(percentageDelta) >= THRESHOLD) {
+                underperformerWorth += Math.abs(delta.deviation);
+            }
+        }
+
+        return underperformerWorth;
+    }
+
+    public getHighestPerformer(distributionDelta: IDistributionDelta[], ignoreList: string[]) {
+        let highestPerformer: IDistributionDelta = null;
+
+        for (const delta of distributionDelta) {
+            if (!highestPerformer) {
+                highestPerformer = delta;
+                continue;
+            }
+            
+            if (!ignoreList.includes(delta.coin)) {
+                if (delta.deviation > highestPerformer.deviation) {
+                    highestPerformer = delta;
+                }
+            }
+        }
+
+        return highestPerformer;
+    }
+}
