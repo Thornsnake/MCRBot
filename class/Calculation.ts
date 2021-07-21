@@ -1,5 +1,6 @@
 import { EXCLUDE, INCLUDE, QUOTE, THRESHOLD } from "../config.js";
 import { IAccount } from "../interface/IAccount.js";
+import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 import { IDistributionDelta } from "../interface/IDistributionDelta.js";
 import { IInstrument } from "../interface/IInstrument.js";
 import { ITicker } from "../interface/ITicker.js";
@@ -7,7 +8,7 @@ import { ITicker } from "../interface/ITicker.js";
 export class Calculation {
     constructor() {}
 
-    public getTradableCoins(instruments: IInstrument[], stablecoins: string[], coins: string[]) {
+    public getTradableCoins(instruments: IInstrument[], stablecoins: string[], coins: string[], coinRemovalList?: ICoinRemoval[]) {
         const tradableCoins: string[] = [];
 
         for (const instrument of instruments) {
@@ -43,6 +44,18 @@ export class Calculation {
 
             if (!tradableCoin) {
                 tradableCoins.push(coin);
+            }
+        }
+
+        if (coinRemovalList) {
+            for (const coinRemoval of coinRemovalList) {
+                const tradableCoin = tradableCoins.find((row) => {
+                    return row === coinRemoval.coin;
+                });
+    
+                if (!tradableCoin) {
+                    tradableCoins.push(coinRemoval.coin);
+                }
             }
         }
 

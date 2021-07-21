@@ -813,14 +813,24 @@ export class Trade {
 
         /**
          * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
-         * not stablecoins.
+         * not stablecoins. Exclude the removal list for the market cap check.
          */
-        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins);
+        const tradableCoinsWithoutRemovalList = this.Calculation.getTradableCoins(instruments, stablecoins, coins);
 
         /**
          * Rebalance
          */
-        await this.rebalanceMarketCaps(instruments, tradableCoins);
+        await this.rebalanceMarketCaps(instruments, tradableCoinsWithoutRemovalList);
+
+        /**
+         * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
+         * not stablecoins.
+         */
+        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, this.CoinRemovalList);
+
+        /**
+         * Rebalance
+         */
         await this.rebalanceOverperformers(instruments, tradableCoins);
         await this.rebalanceUnderperformers(instruments, tradableCoins);
     }
@@ -852,7 +862,7 @@ export class Trade {
          * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
          * not stablecoins.
          */
-        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins);
+        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, this.CoinRemovalList);
 
         /**
          * Invest
