@@ -7,6 +7,7 @@ import { Account } from "./Account.js";
 import { Ticker } from "./Ticker.js";
 import { Calculation } from "./Calculation.js";
 import { INVESTMENT, QUOTE, THRESHOLD, TOP } from "../config.js";
+import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 
 export class Trade {
     private _authentication: Authentication;
@@ -16,6 +17,8 @@ export class Trade {
     private _ticker: Ticker;
     private _calculation: Calculation;
 
+    private _coinRemovalList: ICoinRemoval[];
+
     constructor() {
         this._authentication = new Authentication();
         this._instrument = new Instrument();
@@ -23,6 +26,8 @@ export class Trade {
         this._account = new Account();
         this._ticker = new Ticker();
         this._calculation = new Calculation;
+
+        this._coinRemovalList = [];
     }
 
     private get Authentication() {
@@ -47,6 +52,10 @@ export class Trade {
 
     private get Calculation() {
         return this._calculation;
+    }
+
+    private get CoinRemovalList() {
+        return this._coinRemovalList;
     }
 
     private minimumSellQuantity(instrument: IInstrument) {
@@ -179,9 +188,29 @@ export class Trade {
             }
 
             if (!tradableCoins.includes(coinBalance.currency.toUpperCase())) {
-                shouldContinue = true;
+                const coinRemoval = this.CoinRemovalList.find((row) => {
+                    return row.coin === coinBalance.currency.toUpperCase();
+                });
 
-                break;
+                if (!coinRemoval) {
+                    this.CoinRemovalList.push({
+                        coin: coinBalance.currency.toUpperCase(),
+                        execute: Date.now() + 86400000
+                    });
+                }
+                else if (coinRemoval.execute < Date.now()) {
+                    shouldContinue = true;
+                    break;
+                }
+            }
+            else {
+                const index = this.CoinRemovalList.findIndex((row) => {
+                    return row.coin === coinBalance.currency.toUpperCase();
+                });
+
+                if (index > -1) {
+                    this.CoinRemovalList.splice(index, 1);
+                }
             }
         }
 
@@ -228,12 +257,24 @@ export class Trade {
             }
 
             if (!tradableCoins.includes(coinBalance.currency.toUpperCase())) {
-                const sold = await this.sell(instrument, quantity);
+                const coinRemoval = this.CoinRemovalList.find((row) => {
+                    return row.coin === coinBalance.currency.toUpperCase();
+                });
 
-                if (sold) {
-                    soldCoinWorth += quantity * ticker.k;
+                if (coinRemoval && coinRemoval.execute < Date.now()) {
+                    const sold = await this.sell(instrument, quantity);
 
-                    console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${(quantity * ticker.k).toFixed(2)} ${QUOTE}`);
+                    if (sold) {
+                        soldCoinWorth += quantity * ticker.k;
+
+                        const index = this.CoinRemovalList.findIndex((row) => {
+                            return row.coin === coinBalance.currency.toUpperCase();
+                        });
+
+                        this.CoinRemovalList.splice(index, 1);
+
+                        console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${(quantity * ticker.k).toFixed(2)} ${QUOTE}`);
+                    }
                 }
             }
         }
@@ -524,13 +565,13 @@ export class Trade {
         /**
          * Calculate the worth that each coin is deviating from the average.
          */
-         const distributionDelta = this.Calculation.getDistributionDelta(sharePerCoin, tradableCoins, balance, tickers);
+        const distributionDelta = this.Calculation.getDistributionDelta(sharePerCoin, tradableCoins, balance, tickers);
 
-         for (const delta of distributionDelta) {
-             const percentageDelta = (((delta.deviation + sharePerCoin) / sharePerCoin) - 1) * 100;
- 
-             console.log(`[CHECK] ${delta.coin} deviates ${delta.deviation.toFixed(2)} ${QUOTE} (${percentageDelta.toFixed(2)}%)${percentageDelta <= 0 - THRESHOLD ? " -> [MARKED]" : ""}`);
-         }
+        for (const delta of distributionDelta) {
+            const percentageDelta = (((delta.deviation + sharePerCoin) / sharePerCoin) - 1) * 100;
+
+            console.log(`[CHECK] ${delta.coin} deviates ${delta.deviation.toFixed(2)} ${QUOTE} (${percentageDelta.toFixed(2)}%)${percentageDelta <= 0 - THRESHOLD ? " -> [MARKED]" : ""}`);
+        }
 
         /**
          * Calculate how much money we need to bring up the underperformers.
