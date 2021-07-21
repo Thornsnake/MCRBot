@@ -221,9 +221,9 @@ export class Trade {
         console.log(``);
         console.log(``);
         console.log(`----------------------------------------------------------------`);
-        console.log(`-------------------- REBALANCE - Market Cap --------------------`);
+        console.log(`------------------- REBALANCE - Invalid Coins ------------------`);
         console.log(`----------------------------------------------------------------`);
-        console.log(`One or more coins fell out of the top ${TOP} coins by market cap`);
+        console.log(`One or more coins do not fulfill the trading conditions.`);
         console.log(``);
 
         /**
