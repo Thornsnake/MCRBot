@@ -8,6 +8,7 @@ import { Ticker } from "./Ticker.js";
 import { Calculation } from "./Calculation.js";
 import { INVESTMENT, QUOTE, THRESHOLD, TOP } from "../config.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
+import { EXCLUDE } from "../_config.js";
 
 export class Trade {
     private _authentication: Authentication;
@@ -193,10 +194,18 @@ export class Trade {
                 });
 
                 if (!coinRemoval) {
-                    this.CoinRemovalList.push({
-                        coin: coinBalance.currency.toUpperCase(),
-                        execute: Date.now() + 86400000
-                    });
+                    if (EXCLUDE.includes(coinBalance.currency.toUpperCase())) {
+                        this.CoinRemovalList.push({
+                            coin: coinBalance.currency.toUpperCase(),
+                            execute: Date.now() - 86400000
+                        });
+                    }
+                    else {
+                        this.CoinRemovalList.push({
+                            coin: coinBalance.currency.toUpperCase(),
+                            execute: Date.now() + 86400000
+                        });
+                    }
                 }
                 else if (coinRemoval.execute < Date.now()) {
                     shouldContinue = true;
