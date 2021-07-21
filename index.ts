@@ -14,6 +14,7 @@ class Bot {
     }
 
     async run() {
+        await this._trade.rebalance();
         // Define exit events to cleanly shut down the bot.
         for (const exitEvent of ["SIGINT", "SIGUSR1", "SIGUSR2", "SIGTERM"]) {
             process.on(exitEvent, async () => {

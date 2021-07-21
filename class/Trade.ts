@@ -193,23 +193,22 @@ export class Trade {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
 
+                const excluded = EXCLUDE.find((row) => {
+                    return row.toUpperCase() === coinBalance.currency.toUpperCase();
+                });
+
+                if (excluded) {
+                    shouldContinue = true;
+                }
+                
                 if (!coinRemoval) {
-                    if (EXCLUDE.includes(coinBalance.currency.toUpperCase())) {
-                        this.CoinRemovalList.push({
-                            coin: coinBalance.currency.toUpperCase(),
-                            execute: Date.now() - 86400000
-                        });
-                    }
-                    else {
-                        this.CoinRemovalList.push({
-                            coin: coinBalance.currency.toUpperCase(),
-                            execute: Date.now() + 86400000
-                        });
-                    }
+                    this.CoinRemovalList.push({
+                        coin: coinBalance.currency.toUpperCase(),
+                        execute: Date.now() + 86400000
+                    });
                 }
                 else if (coinRemoval.execute < Date.now()) {
                     shouldContinue = true;
-                    break;
                 }
             }
             else {
@@ -270,7 +269,11 @@ export class Trade {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
 
-                if (coinRemoval && coinRemoval.execute < Date.now()) {
+                const excluded = EXCLUDE.find((row) => {
+                    return row.toUpperCase() === coinBalance.currency.toUpperCase();
+                });
+
+                if ((coinRemoval && coinRemoval.execute < Date.now()) || excluded) {
                     const sold = await this.sell(instrument, quantity);
 
                     if (sold) {
