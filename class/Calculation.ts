@@ -1,4 +1,4 @@
-import { EXCLUDE, INCLUDE, INVESTMENT, QUOTE, THRESHOLD } from "../config.js";
+import { EXCLUDE, INCLUDE, QUOTE, THRESHOLD } from "../config.js";
 import { IAccount } from "../interface/IAccount.js";
 import { IDistributionDelta } from "../interface/IDistributionDelta.js";
 import { IInstrument } from "../interface/IInstrument.js";
@@ -122,10 +122,6 @@ export class Calculation {
         return funds.available;
     }
 
-    public getInvestmentWorth(tradableCoins: string[]) {
-        return tradableCoins.length * INVESTMENT;
-    }
-
     public getLowestPerformer(distributionDelta: IDistributionDelta[], ignoreList: string[]) {
         let lowestPerformer: IDistributionDelta = null;
 
@@ -178,5 +174,20 @@ export class Calculation {
         }
 
         return highestPerformer;
+    }
+
+    public fixNotional(instrument: IInstrument, notional: number) {
+        return Math.floor(notional * Math.pow(10, instrument.price_decimals)) / Math.pow(10, instrument.price_decimals);
+    }
+
+    public fixQuantity(instrument: IInstrument, quantity: number) {
+        return Math.floor(quantity * Math.pow(10, instrument.quantity_decimals)) / Math.pow(10, instrument.quantity_decimals);
+    }
+
+    public minimumBuyNotional(instrument: IInstrument, ticker: ITicker) {
+        const minPriceNotional = (1 / Math.pow(10, instrument.price_decimals)) * 1.1;
+        const minQuantityNotional = (ticker.k / Math.pow(10, instrument.quantity_decimals)) * 1.1;
+
+        return minPriceNotional > minQuantityNotional ? minPriceNotional : minQuantityNotional;
     }
 }

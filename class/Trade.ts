@@ -1,7 +1,6 @@
 import axios from "axios";
 import { Authentication } from "./Authentication.js";
 import { IInstrument } from "../interface/IInstrument.js";
-import { ITicker } from "../interface/ITicker.js";
 import { Instrument } from "./Instrument.js";
 import { CoinGecko } from "./CoinGecko.js";
 import { Account } from "./Account.js";
@@ -48,21 +47,6 @@ export class Trade {
 
     private get Calculation() {
         return this._calculation;
-    }
-
-    private fixNotional(instrument: IInstrument, notional: number) {
-        return Math.floor(notional * Math.pow(10, instrument.price_decimals)) / Math.pow(10, instrument.price_decimals);
-    }
-
-    private fixQuantity(instrument: IInstrument, quantity: number) {
-        return Math.floor(quantity * Math.pow(10, instrument.quantity_decimals)) / Math.pow(10, instrument.quantity_decimals);
-    }
-
-    private minimumBuyNotional(instrument: IInstrument, ticker: ITicker) {
-        const minPriceNotional = (1 / Math.pow(10, instrument.price_decimals)) * 1.1;
-        const minQuantityNotional = (ticker.k / Math.pow(10, instrument.quantity_decimals)) * 1.1;
-
-        return minPriceNotional > minQuantityNotional ? minPriceNotional : minQuantityNotional;
     }
 
     private minimumSellQuantity(instrument: IInstrument) {
@@ -187,7 +171,7 @@ export class Trade {
                 continue;
             }
 
-            const quantity = this.fixQuantity(instrument, coinBalance.available);
+            const quantity = this.Calculation.fixQuantity(instrument, coinBalance.available);
             const minimumQuantity = this.minimumSellQuantity(instrument);
 
             if (quantity < minimumQuantity) {
@@ -236,7 +220,7 @@ export class Trade {
                 continue;
             }
 
-            const quantity = this.fixQuantity(instrument, coinBalance.available);
+            const quantity = this.Calculation.fixQuantity(instrument, coinBalance.available);
             const minimumQuantity = this.minimumSellQuantity(instrument);
 
             if (quantity < minimumQuantity) {
@@ -291,19 +275,20 @@ export class Trade {
                 continue;
             }
 
-            let buyNotional = this.fixNotional(instrument, Math.abs(lowestPerformer.deviation));
-            const minimumNotional = this.fixNotional(instrument, this.minimumBuyNotional(instrument, ticker));
+            const minimumNotional = this.Calculation.fixNotional(instrument, this.Calculation.minimumBuyNotional(instrument, ticker));
 
             if (minimumNotional > soldCoinWorth) {
                 break;
             }
+
+            let buyNotional = this.Calculation.fixNotional(instrument, Math.abs(lowestPerformer.deviation));
 
             if (buyNotional < minimumNotional) {
                 buyNotional = minimumNotional;
             }
 
             if (buyNotional > soldCoinWorth) {
-                buyNotional = this.fixNotional(instrument, soldCoinWorth);
+                buyNotional = this.Calculation.fixNotional(instrument, soldCoinWorth);
             }
 
             const bought = await this.buy(instrument, buyNotional);
@@ -408,7 +393,7 @@ export class Trade {
                 continue;
             }
 
-            const quantity = this.fixQuantity(instrument, coinDelta / ticker.b);
+            const quantity = this.Calculation.fixQuantity(instrument, coinDelta / ticker.b);
             const minimumQuantity = this.minimumSellQuantity(instrument);
 
             if (quantity < minimumQuantity) {
@@ -461,19 +446,20 @@ export class Trade {
                 continue;
             }
 
-            let buyNotional = this.fixNotional(instrument, Math.abs(lowestPerformer.deviation));
-            const minimumNotional = this.fixNotional(instrument, this.minimumBuyNotional(instrument, ticker));
+            const minimumNotional = this.Calculation.fixNotional(instrument, this.Calculation.minimumBuyNotional(instrument, ticker));
 
             if (minimumNotional > soldCoinWorth) {
                 break;
             }
+
+            let buyNotional = this.Calculation.fixNotional(instrument, Math.abs(lowestPerformer.deviation));
 
             if (buyNotional < minimumNotional) {
                 buyNotional = minimumNotional;
             }
 
             if (buyNotional > soldCoinWorth) {
-                buyNotional = this.fixNotional(instrument, soldCoinWorth);
+                buyNotional = this.Calculation.fixNotional(instrument, soldCoinWorth);
             }
 
             const bought = await this.buy(instrument, buyNotional);
@@ -585,7 +571,7 @@ export class Trade {
             }
 
             const sellNotional = Math.abs(highestPerformer.deviation);
-            const quantity = this.fixQuantity(instrument, sellNotional / ticker.k);
+            const quantity = this.Calculation.fixQuantity(instrument, sellNotional / ticker.k);
             const minimumQuantity = this.minimumSellQuantity(instrument);
 
             if (minimumQuantity * ticker.k >= underperformerWorth) {
@@ -643,19 +629,20 @@ export class Trade {
                 continue;
             }
 
-            let buyNotional = this.fixNotional(instrument, Math.abs(lowestPerformer.deviation));
-            const minimumNotional = this.fixNotional(instrument, this.minimumBuyNotional(instrument, ticker));
+            const minimumNotional = this.Calculation.fixNotional(instrument, this.Calculation.minimumBuyNotional(instrument, ticker));
 
             if (minimumNotional > soldCoinWorth) {
                 break;
             }
+
+            let buyNotional = this.Calculation.fixNotional(instrument, Math.abs(lowestPerformer.deviation));
 
             if (buyNotional < minimumNotional) {
                 buyNotional = minimumNotional;
             }
 
             if (buyNotional > soldCoinWorth) {
-                buyNotional = this.fixNotional(instrument, soldCoinWorth);
+                buyNotional = this.Calculation.fixNotional(instrument, soldCoinWorth);
             }
 
             const bought = await this.buy(instrument, buyNotional);
@@ -694,12 +681,12 @@ export class Trade {
         /**
          * Get the available funds that are not invested.
          */
-        const availableFunds = this.Calculation.getAvailableFunds(balance);
+        let availableFunds = this.Calculation.getAvailableFunds(balance);
 
         /**
          * Get the investment worth.
          */
-        let investmentWorth = this.Calculation.getInvestmentWorth(tradableCoins);
+        let coinWorth = INVESTMENT / tradableCoins.length;
 
         console.log(``);
         console.log(``);
@@ -707,13 +694,13 @@ export class Trade {
         console.log(`---------------------------- INVEST ----------------------------`);
         console.log(`----------------------------------------------------------------`);
         console.log(`Portfolio Worth: ${portfolioWorth.toFixed(2)} ${QUOTE} | Available Funds: ${availableFunds.toFixed(2)} ${QUOTE}`);
-        console.log(`Investing ${investmentWorth.toFixed(2)} ${QUOTE} (${tradableCoins.length} x ${INVESTMENT.toFixed(2)} ${QUOTE})`);
+        console.log(`Investing ${INVESTMENT.toFixed(2)} ${QUOTE} (${tradableCoins.length} x ${coinWorth.toFixed(2)} ${QUOTE}).`);
         console.log(``);
 
         /**
          * Make sure the investment worth is not higher than the available funds.
          */
-        if (investmentWorth > availableFunds) {
+        if (INVESTMENT > availableFunds) {
             console.log(`Not enough funds!`);
             return;
         }
@@ -738,21 +725,22 @@ export class Trade {
                 continue;
             }
 
-            let buyNotional = this.fixNotional(instrument, INVESTMENT);
-            const minimumNotional = this.fixNotional(instrument, this.minimumBuyNotional(instrument, ticker));
+            const minimumNotional = this.Calculation.fixNotional(instrument, this.Calculation.minimumBuyNotional(instrument, ticker));
 
-            if (minimumNotional > investmentWorth) {
-                continue;
-            }
+            let buyNotional = this.Calculation.fixNotional(instrument, coinWorth);
 
             if (buyNotional < minimumNotional) {
                 buyNotional = minimumNotional;
             }
 
+            if (buyNotional > availableFunds) {
+                continue;
+            }
+
             const bought = await this.buy(instrument, buyNotional);
 
             if (bought) {
-                investmentWorth -= buyNotional;
+                availableFunds -= buyNotional;
 
                 console.log(`[BUY] ${tradableCoin} for ${buyNotional.toFixed(2)} ${QUOTE}`);
             }

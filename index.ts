@@ -39,7 +39,7 @@ class Bot {
         });
 
         console.log(`Tasks scheduled!`);
-        console.log(`Investing at [${SCHEDULE.INVESTING}] with ${INVESTMENT.toFixed(2)} ${QUOTE} each coin ...`);
+        console.log(`Investing at [${SCHEDULE.INVESTING}] with ${INVESTMENT.toFixed(2)} ${QUOTE} ...`);
         console.log(`Rebalancing at [${SCHEDULE.REBALANCE}] with threshold of ${THRESHOLD.toFixed(2)}% ...`);
     }
 }
