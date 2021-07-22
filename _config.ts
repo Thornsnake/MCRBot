@@ -49,6 +49,9 @@ export const SCHEDULE = {
  * The top x coins by market cap that the bot should invest into and rebalance. If a coin falls out
  * of this limit, it will be sold and the money will be rebalanced into the remaining coins or the
  * coin that replaced it.
+ * 
+ * If you do not care about the market cap and want to have a manual list with coins to trade on,
+ * set the TOP option to 0. Only the coins in the INCLUDE option will then be traded.
  */
 export const TOP = 50;
 

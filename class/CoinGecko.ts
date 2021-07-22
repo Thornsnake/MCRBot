@@ -9,6 +9,10 @@ export class CoinGecko {
         try {
             const result = [];
 
+            if (TOP < 1) {
+                return result;
+            }
+
             const response = await axios.get(
                 `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=stablecoins&order=market_cap_desc&per_page=${TOP}&page=1&sparkline=false`
             );
@@ -33,6 +37,10 @@ export class CoinGecko {
     public async getCoins(): Promise<string[] | undefined> {
         try {
             const result = [];
+
+            if (TOP < 1) {
+                return result;
+            }
 
             const response = await axios.get(
                 `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${TOP}&page=1&sparkline=false`

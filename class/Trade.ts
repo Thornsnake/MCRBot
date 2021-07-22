@@ -8,6 +8,7 @@ import { Ticker } from "./Ticker.js";
 import { Calculation } from "./Calculation.js";
 import { INVESTMENT, QUOTE, THRESHOLD, TOP } from "../config.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
+import { EXCLUDE } from "../_config.js";
 
 export class Trade {
     private _authentication: Authentication;
@@ -192,6 +193,14 @@ export class Trade {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
 
+                const excluded = EXCLUDE.find((row) => {
+                    return row.toUpperCase() === coinBalance.currency.toUpperCase();
+                });
+
+                if (excluded) {
+                    shouldContinue = true;
+                }
+                
                 if (!coinRemoval) {
                     this.CoinRemovalList.push({
                         coin: coinBalance.currency.toUpperCase(),
@@ -200,7 +209,6 @@ export class Trade {
                 }
                 else if (coinRemoval.execute < Date.now()) {
                     shouldContinue = true;
-                    break;
                 }
             }
             else {
@@ -253,7 +261,11 @@ export class Trade {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
 
-                if (coinRemoval && coinRemoval.execute < Date.now()) {
+                const excluded = EXCLUDE.find((row) => {
+                    return row.toUpperCase() === coinBalance.currency.toUpperCase();
+                });
+
+                if ((coinRemoval && coinRemoval.execute < Date.now()) || excluded) {
                     const sold = await this.sell(instrument, quantity);
 
                     if (sold) {
