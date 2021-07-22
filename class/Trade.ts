@@ -6,7 +6,7 @@ import { CoinGecko } from "./CoinGecko.js";
 import { Account } from "./Account.js";
 import { Ticker } from "./Ticker.js";
 import { Calculation } from "./Calculation.js";
-import { INVESTMENT, QUOTE, THRESHOLD, TOP } from "../config.js";
+import { INVESTMENT, QUOTE, THRESHOLD } from "../config.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 import { EXCLUDE } from "../_config.js";
 
@@ -382,11 +382,6 @@ export class Trade {
         const sharePerCoin = this.Calculation.getSharePerCoin(portfolioWorth, tradableCoins);
 
         /**
-         * Get the available funds that are not invested.
-         */
-        let availableFunds = this.Calculation.getAvailableFunds(balance);
-
-        /**
          * Calculate the worth that each coin is deviating from the average.
          */
         const distributionDelta = this.Calculation.getDistributionDelta(sharePerCoin, tradableCoins, balance, tickers);
@@ -442,7 +437,7 @@ export class Trade {
         /**
          * Get the available funds that are not invested.
          */
-        availableFunds = this.Calculation.getAvailableFunds(balance);
+        const availableFunds = this.Calculation.getAvailableFunds(balance);
 
         /**
          * Make sure the re-investable worth of coins is not higher than the available funds.
@@ -538,11 +533,6 @@ export class Trade {
         const sharePerCoin = this.Calculation.getSharePerCoin(portfolioWorth, tradableCoins);
 
         /**
-         * Get the available funds that are not invested.
-         */
-        let availableFunds = this.Calculation.getAvailableFunds(balance);
-
-        /**
          * Calculate the worth that each coin is deviating from the average.
          */
         const distributionDelta = this.Calculation.getDistributionDelta(sharePerCoin, tradableCoins, balance, tickers);
@@ -610,7 +600,7 @@ export class Trade {
         /**
          * Get the available funds that are not invested.
          */
-        availableFunds = this.Calculation.getAvailableFunds(balance);
+        const availableFunds = this.Calculation.getAvailableFunds(balance);
 
         /**
          * Make sure the re-investable worth of coins is not higher than the available funds.
@@ -687,11 +677,6 @@ export class Trade {
         if (!balance || !tickers) {
             return;
         }
-
-        /**
-         * Calculate the current portfolio worth.
-         */
-        const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, tickers);
 
         /**
          * Get the available funds that are not invested.
