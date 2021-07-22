@@ -80,3 +80,16 @@ export const EXCLUDE = ["DOGE", "SHIB"];
  * the sold amount into the underperforming coins.
  */
 export const THRESHOLD = 5;
+
+/**
+ * The weight in percent you want each coin to have in your portfolio. The total percentage of all
+ * values combined can not be larger than 100. If the total percentage of all values does not
+ * reach 100, the remaining percent will be split over all other coins.
+ * 
+ * Be aware that defining a weight here will not automatically include the coin to be traded. It
+ * still must either be within the set market cap or be present in the INCLUDE option.
+ */
+export const WEIGHT = {
+    "USDC": 40,
+    "BTC": 10
+}

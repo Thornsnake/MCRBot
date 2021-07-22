@@ -4,6 +4,7 @@ import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 import { IDistributionDelta } from "../interface/IDistributionDelta.js";
 import { IInstrument } from "../interface/IInstrument.js";
 import { ITicker } from "../interface/ITicker.js";
+import { INVESTMENT, WEIGHT } from "../_config.js";
 
 export class Calculation {
     constructor() {}
@@ -202,5 +203,13 @@ export class Calculation {
         const minQuantityNotional = (ticker.k / Math.pow(10, instrument.quantity_decimals)) * 1.1;
 
         return minPriceNotional > minQuantityNotional ? minPriceNotional : minQuantityNotional;
+    }
+
+    public getCoinInvestmentTarget(tradableCoins: string[], coin: string): number {
+        const reservedWeight = Object.values(WEIGHT).reduce((acc, cur) => {
+            return acc + cur;
+        });
+
+        return WEIGHT[coin] ? WEIGHT[coin] : INVESTMENT * ((100 - reservedWeight) / 100) / (tradableCoins.length - Object.entries(WEIGHT).length);
     }
 }

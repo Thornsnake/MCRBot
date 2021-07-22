@@ -684,11 +684,6 @@ export class Trade {
         let availableFunds = this.Calculation.getAvailableFunds(balance);
 
         /**
-         * Get the investment worth.
-         */
-        let coinWorth = INVESTMENT / tradableCoins.length;
-
-        /**
          * Make sure the investment worth is not higher than the available funds.
          */
         if (INVESTMENT > availableFunds) {
@@ -717,7 +712,8 @@ export class Trade {
 
             const minimumNotional = this.Calculation.fixNotional(instrument, this.Calculation.minimumBuyNotional(instrument, ticker));
 
-            let buyNotional = this.Calculation.fixNotional(instrument, coinWorth);
+            const coinInvestmentTarget = this.Calculation.getCoinInvestmentTarget(tradableCoins, tradableCoin);
+            let buyNotional = this.Calculation.fixNotional(instrument, coinInvestmentTarget);
 
             if (buyNotional < minimumNotional) {
                 buyNotional = minimumNotional;
