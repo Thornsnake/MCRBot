@@ -1,10 +1,9 @@
-import { EXCLUDE, INCLUDE, QUOTE, THRESHOLD } from "../config.js";
+import { EXCLUDE, INCLUDE, QUOTE, THRESHOLD, INVESTMENT, WEIGHT } from "../config.js";
 import { IAccount } from "../interface/IAccount.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 import { IDistributionDelta } from "../interface/IDistributionDelta.js";
 import { IInstrument } from "../interface/IInstrument.js";
 import { ITicker } from "../interface/ITicker.js";
-import { INVESTMENT, WEIGHT } from "../_config.js";
 
 export class Calculation {
     constructor() {}
@@ -44,7 +43,13 @@ export class Calculation {
             });
 
             if (!tradableCoin) {
-                tradableCoins.push(coin);
+                const instrument = instruments.find((row) => {
+                    return row.base_currency.toUpperCase() === coin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                });
+
+                if (instrument) {
+                    tradableCoins.push(coin);
+                }
             }
         }
 
@@ -93,7 +98,7 @@ export class Calculation {
         return portfolioWorth;
     }
 
-    public getDistributionDelta(sharePerCoin: number, tradableCoins: string[], balance: IAccount[], tickers: ITicker[]) {
+    public getDistributionDelta(portfolioWorth: number, tradableCoins: string[], balance: IAccount[], tickers: ITicker[]) {
         const deviations: IDistributionDelta[] = [];
 
         for (const tradableCoin of tradableCoins) {
@@ -113,11 +118,33 @@ export class Calculation {
                 continue;
             }
 
-            const deviation = (coin.available * ticker.b) - sharePerCoin;
+            const reservedWeight = Object.entries(WEIGHT).reduce((acc, cur) => {
+                if (tradableCoins.includes(cur[0].toUpperCase())) {
+                    return acc + cur[1];
+                }
+                else {
+                    return acc;
+                }
+            }, 0);
+
+            const validReservedCoins = Object.entries(WEIGHT).reduce((acc, cur) => {
+                if (tradableCoins.includes(cur[0].toUpperCase())) {
+                    return acc + 1;
+                }
+                else {
+                    return acc;
+                }
+            }, 0);
+
+            const coinTarget = WEIGHT[tradableCoin] ? portfolioWorth * (WEIGHT[tradableCoin] / 100) : portfolioWorth * ((100 - reservedWeight) / 100) / (tradableCoins.length - validReservedCoins);
+            const deviation = (coin.available * ticker.b) - coinTarget;
+            const percentageDelta = (((deviation + coinTarget) / coinTarget) - 1) * 100;
 
             deviations.push({
-                coin: tradableCoin,
-                deviation: deviation
+                name: tradableCoin,
+                deviation: deviation,
+                percentage: percentageDelta,
+                target: coinTarget
             });
         }
 
@@ -139,32 +166,30 @@ export class Calculation {
     public getLowestPerformer(distributionDelta: IDistributionDelta[], ignoreList: string[]) {
         let lowestPerformer: IDistributionDelta = null;
 
-        for (const delta of distributionDelta) {
-            if (ignoreList.includes(delta.coin)) {
+        for (const coin of distributionDelta) {
+            if (ignoreList.includes(coin.name)) {
                 continue;
             }
 
             if (!lowestPerformer) {
-                lowestPerformer = delta;
+                lowestPerformer = coin;
                 continue;
             }
             
-            if (delta.deviation < lowestPerformer.deviation) {
-                lowestPerformer = delta;
+            if (coin.percentage < lowestPerformer.percentage) {
+                lowestPerformer = coin;
             }
         }
 
         return lowestPerformer;
     }
 
-    public getUnderperformerWorth(sharePerCoin: number, distributionDelta: IDistributionDelta[]) {
+    public getUnderperformerWorth(distributionDelta: IDistributionDelta[]) {
         let underperformerWorth = 0;
 
-        for (const delta of distributionDelta) {
-            const percentageDelta = (((delta.deviation + sharePerCoin) / sharePerCoin) - 1) * 100;
-
-            if (percentageDelta < 0 && Math.abs(percentageDelta) >= THRESHOLD) {
-                underperformerWorth += Math.abs(delta.deviation);
+        for (const coin of distributionDelta) {
+            if (coin.percentage <= 0 - THRESHOLD) {
+                underperformerWorth += Math.abs(coin.deviation);
             }
         }
 
@@ -174,16 +199,18 @@ export class Calculation {
     public getHighestPerformer(distributionDelta: IDistributionDelta[], ignoreList: string[]) {
         let highestPerformer: IDistributionDelta = null;
 
-        for (const delta of distributionDelta) {
+        for (const coin of distributionDelta) {
+            if (ignoreList.includes(coin.name)) {
+                continue;
+            }
+
             if (!highestPerformer) {
-                highestPerformer = delta;
+                highestPerformer = coin;
                 continue;
             }
             
-            if (!ignoreList.includes(delta.coin)) {
-                if (delta.deviation > highestPerformer.deviation) {
-                    highestPerformer = delta;
-                }
+            if (coin.percentage > highestPerformer.percentage) {
+                highestPerformer = coin;
             }
         }
 
@@ -206,10 +233,24 @@ export class Calculation {
     }
 
     public getCoinInvestmentTarget(tradableCoins: string[], coin: string): number {
-        const reservedWeight = Object.values(WEIGHT).reduce((acc, cur) => {
-            return acc + cur;
-        });
+        const reservedWeight = Object.entries(WEIGHT).reduce((acc, cur) => {
+            if (tradableCoins.includes(cur[0])) {
+                return acc + cur[1];
+            }
+            else {
+                return acc;
+            }
+        }, 0);
 
-        return WEIGHT[coin] ? WEIGHT[coin] : INVESTMENT * ((100 - reservedWeight) / 100) / (tradableCoins.length - Object.entries(WEIGHT).length);
+        const validReservedCoins = Object.entries(WEIGHT).reduce((acc, cur) => {
+            if (tradableCoins.includes(cur[0])) {
+                return acc + 1;
+            }
+            else {
+                return acc;
+            }
+        }, 0);
+
+        return WEIGHT[coin] ? INVESTMENT * (WEIGHT[coin] / 100) : INVESTMENT * ((100 - reservedWeight) / 100) / (tradableCoins.length - validReservedCoins);
     }
 }

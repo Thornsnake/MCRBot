@@ -1,4 +1,6 @@
 export interface IDistributionDelta {
-    coin: string;
+    name: string;
     deviation: number;
+    percentage: number;
+    target: number;
 }

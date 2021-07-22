@@ -23,7 +23,7 @@ export const SCHEDULE = {
  * 
  * 25 USDT/USDC at time of writing this would be about 0.0008 BTC or 230 CRO.
  */
- export const QUOTE = "USDT";
+export const QUOTE = "USDT";
 
 /**
  * The amount of quote currency that you want to invest per investing interval. The investing
@@ -43,7 +43,7 @@ export const SCHEDULE = {
  * YOU CAN NOT REBALANCE THE TOP 100 COINS BY MARKET CAP IF ALL YOU HAVE ARE $5.00!
  * RAISE THE INVESTMENT AMOUNT, OR CHOOSE A LOWER AMOUNT OF COINS!
  */
- export const INVESTMENT = 25;
+export const INVESTMENT = 25;
 
 /**
  * The top x coins by market cap that the bot should invest into and rebalance. If a coin falls out
@@ -89,7 +89,16 @@ export const THRESHOLD = 5;
  * Be aware that defining a weight here will not automatically include the coin to be traded. It
  * still must either be within the set market cap or be present in the INCLUDE option.
  */
-export const WEIGHT = {
-    "USDC": 40,
+ export const WEIGHT: { [key: string]: number } = {
+    "USDC": 10,
     "BTC": 10
-}
+};
+
+/**
+ * Will only do a dry run and output trade logs as if the trades took place. The trades will not be
+ * executed.
+ * 
+ * WARNING!
+ * This is a debug flag and should be left at false. You can most likely just ignore this option.
+ */
+export const DRY = true;

@@ -6,9 +6,8 @@ import { CoinGecko } from "./CoinGecko.js";
 import { Account } from "./Account.js";
 import { Ticker } from "./Ticker.js";
 import { Calculation } from "./Calculation.js";
-import { INVESTMENT, QUOTE, THRESHOLD } from "../config.js";
+import { INVESTMENT, QUOTE, THRESHOLD, DRY, EXCLUDE } from "../config.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
-import { EXCLUDE } from "../_config.js";
 
 export class Trade {
     private _authentication: Authentication;
@@ -66,6 +65,10 @@ export class Trade {
     private async buy(instrument: IInstrument, notional: number): Promise<boolean> {
         await new Promise(resolve => setTimeout(resolve, 100));
 
+        if (DRY) {
+            return true;
+        }
+
         try {
             await axios.post(
                 "https://api.crypto.com/v2/private/create-order",
@@ -93,6 +96,10 @@ export class Trade {
 
     private async sell(instrument: IInstrument, quantity: number) {
         await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (DRY) {
+            return true;
+        }
 
         try {
             await axios.post(
@@ -136,28 +143,6 @@ export class Trade {
         if (!balance || !tickers) {
             return;
         }
-
-        /**
-         * Calculate the current portfolio worth.
-         */
-        const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, tickers);
-
-        /**
-         * If the portfolio worth is zero, there is nothing to rebalance and we can abort.
-         */
-        if (portfolioWorth === 0) {
-            return;
-        }
-
-        /**
-         * Calculate the share worth that each coin should have.
-         */
-        const sharePerCoin = this.Calculation.getSharePerCoin(portfolioWorth, tradableCoins);
-
-        /**
-         * Calculate the worth that each coin is deviating from the average.
-         */
-        const distributionDelta = this.Calculation.getDistributionDelta(sharePerCoin, tradableCoins, balance, tickers);
 
         /**
          * Check if a coin has fallen out of the set market cap bound.
@@ -296,16 +281,33 @@ export class Trade {
         }
 
         /**
+         * Calculate the current portfolio worth.
+         */
+         const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, tickers);
+
+         /**
+          * If the portfolio worth is zero, there is nothing to rebalance and we can abort.
+          */
+         if (portfolioWorth === 0) {
+             return;
+         }
+ 
+         /**
+          * Calculate the worth that each coin is deviating from the average.
+          */
+         const distributionDelta = this.Calculation.getDistributionDelta(portfolioWorth, tradableCoins, balance, tickers);
+
+        /**
          * Re-invest into underperforming coins.
          */
         const ignoreList = [];
 
         for (let i = 0; i < tradableCoins.length; i++) {
             const lowestPerformer = this.Calculation.getLowestPerformer(distributionDelta, ignoreList);
-            ignoreList.push(lowestPerformer.coin);
+            ignoreList.push(lowestPerformer.name);
 
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === lowestPerformer.coin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === lowestPerformer.name && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -313,7 +315,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === lowestPerformer.coin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === lowestPerformer.name && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -341,7 +343,7 @@ export class Trade {
             if (bought) {
                 soldCoinWorth -= buyNotional;
 
-                console.log(`[BUY] ${lowestPerformer.coin} for ${buyNotional.toFixed(2)} ${QUOTE}`);
+                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional.toFixed(2)} ${QUOTE}`);
             }
         }
     }
@@ -377,14 +379,15 @@ export class Trade {
         }
 
         /**
-         * Calculate the share worth that each coin should have.
-         */
-        const sharePerCoin = this.Calculation.getSharePerCoin(portfolioWorth, tradableCoins);
-
-        /**
          * Calculate the worth that each coin is deviating from the average.
          */
-        const distributionDelta = this.Calculation.getDistributionDelta(sharePerCoin, tradableCoins, balance, tickers);
+        const distributionDelta = this.Calculation.getDistributionDelta(portfolioWorth, tradableCoins, balance, tickers);
+
+        for (const coin of distributionDelta) {
+            if (coin.percentage >= THRESHOLD) {
+                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation.toFixed(2)} ${QUOTE} (${coin.percentage.toFixed(2)}%) -> [OVERPERFORMING]`);
+            }
+        }
 
         /**
          * Sell overperforming coins.
@@ -408,17 +411,15 @@ export class Trade {
                 continue;
             }
 
-            const coinDelta = distributionDelta.find((row) => {
-                return row.coin === tradableCoin;
-            }).deviation;
+            const coin = distributionDelta.find((row) => {
+                return row.name === tradableCoin;
+            });
 
-            const percentageDelta = (((coinDelta + sharePerCoin) / sharePerCoin) - 1) * 100;
-
-            if (percentageDelta < THRESHOLD) {
+            if (coin.percentage < THRESHOLD) {
                 continue;
             }
 
-            const quantity = this.Calculation.fixQuantity(instrument, coinDelta / ticker.b);
+            const quantity = this.Calculation.fixQuantity(instrument, coin.deviation / ticker.b);
             const minimumQuantity = this.minimumSellQuantity(instrument);
 
             if (quantity < minimumQuantity) {
@@ -428,9 +429,9 @@ export class Trade {
             const sold = await this.sell(instrument, quantity);
 
             if (sold) {
-                soldCoinWorth += coinDelta;
+                soldCoinWorth += coin.deviation;
 
-                console.log(`[SELL] ${tradableCoin} for ${coinDelta.toFixed(2)} ${QUOTE}`);
+                console.log(`[SELL] ${tradableCoin} for ${coin.deviation.toFixed(2)} ${QUOTE}`);
             }
         }
 
@@ -453,10 +454,10 @@ export class Trade {
 
         for (let i = 0; i < tradableCoins.length; i++) {
             const lowestPerformer = this.Calculation.getLowestPerformer(distributionDelta, ignoreList);
-            ignoreList.push(lowestPerformer.coin);
+            ignoreList.push(lowestPerformer.name);
 
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === lowestPerformer.coin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === lowestPerformer.name && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -464,7 +465,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === lowestPerformer.coin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === lowestPerformer.name && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -492,7 +493,7 @@ export class Trade {
             if (bought) {
                 soldCoinWorth -= buyNotional;
 
-                console.log(`[BUY] ${lowestPerformer.coin} for ${buyNotional.toFixed(2)} ${QUOTE}`);
+                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional.toFixed(2)} ${QUOTE}`);
             }
         }
     }
@@ -528,19 +529,20 @@ export class Trade {
         }
 
         /**
-         * Calculate the share worth that each coin should have.
-         */
-        const sharePerCoin = this.Calculation.getSharePerCoin(portfolioWorth, tradableCoins);
-
-        /**
          * Calculate the worth that each coin is deviating from the average.
          */
-        const distributionDelta = this.Calculation.getDistributionDelta(sharePerCoin, tradableCoins, balance, tickers);
+        const distributionDelta = this.Calculation.getDistributionDelta(portfolioWorth, tradableCoins, balance, tickers);
+
+        for (const coin of distributionDelta) {
+            if (coin.percentage <= 0 - THRESHOLD) {
+                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation.toFixed(2)} ${QUOTE} (${coin.percentage.toFixed(2)}%) -> [UNDERPERFORMING]`);
+            }
+        }
 
         /**
          * Calculate how much money we need to bring up the underperformers.
          */
-        let underperformerWorth = this.Calculation.getUnderperformerWorth(sharePerCoin, distributionDelta);
+        let underperformerWorth = this.Calculation.getUnderperformerWorth(distributionDelta);
 
         /**
          * Make sure the worth of the underperformers is not higher than the portfolio worth.
@@ -557,10 +559,10 @@ export class Trade {
 
         for (let i = 0; i < tradableCoins.length; i++) {
             const highestPerformer = this.Calculation.getHighestPerformer(distributionDelta, ignoreList);
-            ignoreList.push(highestPerformer.coin);
+            ignoreList.push(highestPerformer.name);
 
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === highestPerformer.coin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === highestPerformer.name && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -568,7 +570,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === highestPerformer.coin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === highestPerformer.name && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -593,7 +595,7 @@ export class Trade {
                 underperformerWorth -= quantity * ticker.k;
                 soldCoinWorth += quantity * ticker.k;
 
-                console.log(`[SELL] ${highestPerformer.coin} for ${sellNotional.toFixed(2)} ${QUOTE}`);
+                console.log(`[SELL] ${highestPerformer.name} for ${sellNotional.toFixed(2)} ${QUOTE}`);
             }
         }
 
@@ -616,10 +618,10 @@ export class Trade {
 
         for (let i = 0; i < tradableCoins.length; i++) {
             const lowestPerformer = this.Calculation.getLowestPerformer(distributionDelta, ignoreList);
-            ignoreList.push(lowestPerformer.coin);
+            ignoreList.push(lowestPerformer.name);
 
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === lowestPerformer.coin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === lowestPerformer.name && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -627,7 +629,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === lowestPerformer.coin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === lowestPerformer.name && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -655,7 +657,7 @@ export class Trade {
             if (bought) {
                 soldCoinWorth -= buyNotional;
 
-                console.log(`[BUY] ${lowestPerformer.coin} for ${buyNotional.toFixed(2)} ${QUOTE}`);
+                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional.toFixed(2)} ${QUOTE}`);
             }
         }
     }
