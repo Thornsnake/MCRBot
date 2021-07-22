@@ -101,4 +101,4 @@ export const THRESHOLD = 5;
  * WARNING!
  * This is a debug flag and should be left at false. You can most likely just ignore this option.
  */
-export const DRY = true;
+export const DRY = false;
