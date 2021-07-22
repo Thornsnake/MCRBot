@@ -218,14 +218,6 @@ export class Trade {
             return;
         }
 
-        console.log(``);
-        console.log(``);
-        console.log(`----------------------------------------------------------------`);
-        console.log(`-------------------- REBALANCE - Market Cap --------------------`);
-        console.log(`----------------------------------------------------------------`);
-        console.log(`One or more coins fell out of the top ${TOP} coins by market cap`);
-        console.log(``);
-
         /**
         * If a coins has fallen out of the top x coins by market cap, sell the coin and rebalance
         * the money over the other coins.
@@ -382,25 +374,10 @@ export class Trade {
          */
         let availableFunds = this.Calculation.getAvailableFunds(balance);
 
-        console.log(``);
-        console.log(``);
-        console.log(`----------------------------------------------------------------`);
-        console.log(`------------------ REBALANCE - Overperformers ------------------`);
-        console.log(`----------------------------------------------------------------`);
-        console.log(`Portfolio Worth: ${portfolioWorth.toFixed(2)} ${QUOTE} | Available Funds: ${availableFunds.toFixed(2)} ${QUOTE}`);
-        console.log(`Coin Target: ${sharePerCoin.toFixed(2)} ${QUOTE} | Threshold: ${THRESHOLD.toFixed(2)}%`);
-        console.log(``);
-
         /**
          * Calculate the worth that each coin is deviating from the average.
          */
         const distributionDelta = this.Calculation.getDistributionDelta(sharePerCoin, tradableCoins, balance, tickers);
-
-        for (const delta of distributionDelta) {
-            const percentageDelta = (((delta.deviation + sharePerCoin) / sharePerCoin) - 1) * 100;
-
-            console.log(`[CHECK] ${delta.coin} deviates ${delta.deviation.toFixed(2)} ${QUOTE} (${percentageDelta.toFixed(2)}%)${percentageDelta >= THRESHOLD ? " -> [MARKED]" : ""}`);
-        }
 
         /**
          * Sell overperforming coins.
@@ -553,25 +530,10 @@ export class Trade {
          */
         let availableFunds = this.Calculation.getAvailableFunds(balance);
 
-        console.log(``);
-        console.log(``);
-        console.log(`----------------------------------------------------------------`);
-        console.log(`------------------ REBALANCE - Underperformers -----------------`);
-        console.log(`----------------------------------------------------------------`);
-        console.log(`Portfolio Worth: ${portfolioWorth.toFixed(2)} ${QUOTE} | Available Funds: ${availableFunds.toFixed(2)} ${QUOTE}`);
-        console.log(`Coin Target: ${sharePerCoin.toFixed(2)} ${QUOTE} | Threshold: ${THRESHOLD.toFixed(2)}%`);
-        console.log(``);
-
         /**
          * Calculate the worth that each coin is deviating from the average.
          */
         const distributionDelta = this.Calculation.getDistributionDelta(sharePerCoin, tradableCoins, balance, tickers);
-
-        for (const delta of distributionDelta) {
-            const percentageDelta = (((delta.deviation + sharePerCoin) / sharePerCoin) - 1) * 100;
-
-            console.log(`[CHECK] ${delta.coin} deviates ${delta.deviation.toFixed(2)} ${QUOTE} (${percentageDelta.toFixed(2)}%)${percentageDelta <= 0 - THRESHOLD ? " -> [MARKED]" : ""}`);
-        }
 
         /**
          * Calculate how much money we need to bring up the underperformers.
@@ -729,20 +691,10 @@ export class Trade {
          */
         let coinWorth = INVESTMENT / tradableCoins.length;
 
-        console.log(``);
-        console.log(``);
-        console.log(`----------------------------------------------------------------`);
-        console.log(`---------------------------- INVEST ----------------------------`);
-        console.log(`----------------------------------------------------------------`);
-        console.log(`Portfolio Worth: ${portfolioWorth.toFixed(2)} ${QUOTE} | Available Funds: ${availableFunds.toFixed(2)} ${QUOTE}`);
-        console.log(`Investing ${INVESTMENT.toFixed(2)} ${QUOTE} (${tradableCoins.length} x ${coinWorth.toFixed(2)} ${QUOTE}).`);
-        console.log(``);
-
         /**
          * Make sure the investment worth is not higher than the available funds.
          */
         if (INVESTMENT > availableFunds) {
-            console.log(`Not enough funds!`);
             return;
         }
 

@@ -17,8 +17,10 @@ class Bot {
         // Define exit events to cleanly shut down the bot.
         for (const exitEvent of ["SIGINT", "SIGUSR1", "SIGUSR2", "SIGTERM"]) {
             process.on(exitEvent, async () => {
+                console.log(``);
                 console.log(`Received ${exitEvent} signal`);
                 console.log(`Shutting down`);
+                console.log(``);
 
                 if (this._investingSchedule) {
                     this._investingSchedule.stop();
@@ -38,9 +40,9 @@ class Bot {
             await this._trade.rebalance();
         });
 
-        console.log(`Tasks scheduled!`);
         console.log(`Investing at [${SCHEDULE.INVESTING}] with ${INVESTMENT.toFixed(2)} ${QUOTE} ...`);
         console.log(`Rebalancing at [${SCHEDULE.REBALANCE}] with threshold of ${THRESHOLD.toFixed(2)}% ...`);
+        console.log(``);
     }
 }
 
