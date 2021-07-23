@@ -108,7 +108,9 @@ class Bot {
     }
 
     async run() {
-        if (!this.check()) {
+        const configurationValid = await this.check();
+
+        if (!configurationValid) {
             return;
         }
 
