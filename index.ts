@@ -1,8 +1,7 @@
 import cronJob, { ScheduledTask } from "node-cron";
 import { Trade } from "./class/Trade.js";
-import { INVESTMENT, QUOTE, SCHEDULE, THRESHOLD } from "./config.js";
+import { INVESTMENT, QUOTE, SCHEDULE, THRESHOLD, TOP, WEIGHT } from "./config.js";
 import cronValidator from "cron-validator";
-import { TOP, WEIGHT } from "./_config.js";
 
 class Bot {
     private _trade: Trade;
