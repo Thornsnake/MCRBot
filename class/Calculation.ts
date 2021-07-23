@@ -68,10 +68,6 @@ export class Calculation {
         return tradableCoins;
     }
 
-    public getSharePerCoin(portfolioWorth: number, coins: string[]) {
-        return portfolioWorth / coins.length;
-    }
-
     public getPortfolioWorth(balance: IAccount[], tradableCoins: string[], tickers: ITicker[]) {
         let portfolioWorth = 0;
 

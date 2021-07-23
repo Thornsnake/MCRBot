@@ -10,6 +10,12 @@ export const SECRET = "xxxxxxxxxxxxxxxxxxxxxx";
  * 
  * By default, investing happens 5 minutes after midnight every day. Rebalancing happens every
  * 15 minutes.
+ * 
+ * WARNING!
+ * Seconds are not supported!
+ * Aliases are not supported!
+ * Blank day notation is not supported!
+ * Weekdays range from 0-6 (Sunday-Saturday), not 1-7!
  */
 export const SCHEDULE = {
     INVESTING: "5 0 * * *",
@@ -88,6 +94,9 @@ export const THRESHOLD = 5;
  * 
  * Be aware that defining a weight here will not automatically include the coin to be traded. It
  * still must either be within the set market cap or be present in the INCLUDE option.
+ * 
+ * WARNING!
+ * You can not include the quote currency here!
  */
  export const WEIGHT: { [key: string]: number } = {
     "USDC": 10,

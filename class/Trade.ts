@@ -42,7 +42,7 @@ export class Trade {
         return this._coinGecko;
     }
 
-    private get Account() {
+    public get Account() {
         return this._account;
     }
 
