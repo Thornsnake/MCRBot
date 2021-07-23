@@ -16,7 +16,7 @@ export class Disk {
     }
 
     public async createDirectory(path: string, recursive: boolean) {
-        return new Promise((resolve) => {
+        return new Promise<boolean>((resolve) => {
             fs.mkdir(
                 path,
                 { recursive: recursive },
@@ -28,7 +28,7 @@ export class Disk {
     }
 
     public async save(path: string, text: string) {
-        return new Promise((resolve) => {
+        return new Promise<boolean>((resolve) => {
             fs.writeFile(
                 path,
                 text,

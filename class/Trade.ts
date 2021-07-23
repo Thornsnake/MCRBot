@@ -8,6 +8,7 @@ import { Ticker } from "./Ticker.js";
 import { Calculation } from "./Calculation.js";
 import { INVESTMENT, QUOTE, THRESHOLD, DRY, EXCLUDE } from "../config.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
+import { Disk } from "./Disk.js";
 
 export class Trade {
     private _authentication: Authentication;
@@ -16,8 +17,7 @@ export class Trade {
     private _account: Account;
     private _ticker: Ticker;
     private _calculation: Calculation;
-
-    private _coinRemovalList: ICoinRemoval[];
+    private _disk: Disk;
 
     constructor() {
         this._authentication = new Authentication();
@@ -26,8 +26,7 @@ export class Trade {
         this._account = new Account();
         this._ticker = new Ticker();
         this._calculation = new Calculation;
-
-        this._coinRemovalList = [];
+        this._disk = new Disk();
     }
 
     private get Authentication() {
@@ -54,8 +53,31 @@ export class Trade {
         return this._calculation;
     }
 
-    private get CoinRemovalList() {
-        return this._coinRemovalList;
+    private get Disk() {
+        return this._disk;
+    }
+
+    private async getCoinRemovalList(): Promise<ICoinRemoval[]> {
+        const fileExists = await this.Disk.exists("./data/CoinRemovalList.json");
+
+        if (fileExists) {
+            const data = await this.Disk.load("./data/CoinRemovalList.json");
+
+            return JSON.parse(data);
+        }
+        else {
+            return [];
+        }
+    }
+
+    private async setCoinRemovalList(coinRemovalList: ICoinRemoval[]) {
+        const directoryExists = await this.Disk.exists("./data");
+
+        if (!directoryExists) {
+            await this.Disk.createDirectory("./data", false);
+        }
+
+        await this.Disk.save("./data/CoinRemovalList.json", JSON.stringify(coinRemovalList));
     }
 
     private minimumSellQuantity(instrument: IInstrument) {
@@ -149,6 +171,8 @@ export class Trade {
          */
         let shouldContinue = false;
 
+        const coinRemovalList = await this.getCoinRemovalList();
+
         for (const coinBalance of balance) {
             const instrument = instruments.find((row) => {
                 return row.base_currency.toUpperCase() === coinBalance.currency.toUpperCase() && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
@@ -174,7 +198,7 @@ export class Trade {
             }
 
             if (!tradableCoins.includes(coinBalance.currency.toUpperCase())) {
-                const coinRemoval = this.CoinRemovalList.find((row) => {
+                const coinRemoval = coinRemovalList.find((row) => {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
 
@@ -185,9 +209,9 @@ export class Trade {
                 if (excluded) {
                     shouldContinue = true;
                 }
-                
+
                 if (!coinRemoval) {
-                    this.CoinRemovalList.push({
+                    coinRemovalList.push({
                         coin: coinBalance.currency.toUpperCase(),
                         execute: Date.now() + 86400000
                     });
@@ -197,15 +221,17 @@ export class Trade {
                 }
             }
             else {
-                const index = this.CoinRemovalList.findIndex((row) => {
+                const index = coinRemovalList.findIndex((row) => {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
 
                 if (index > -1) {
-                    this.CoinRemovalList.splice(index, 1);
+                    coinRemovalList.splice(index, 1);
                 }
             }
         }
+
+        await this.setCoinRemovalList(coinRemovalList);
 
         if (!shouldContinue) {
             return;
@@ -242,7 +268,7 @@ export class Trade {
             }
 
             if (!tradableCoins.includes(coinBalance.currency.toUpperCase())) {
-                const coinRemoval = this.CoinRemovalList.find((row) => {
+                const coinRemoval = coinRemovalList.find((row) => {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
 
@@ -256,17 +282,19 @@ export class Trade {
                     if (sold) {
                         soldCoinWorth += quantity * ticker.k;
 
-                        const index = this.CoinRemovalList.findIndex((row) => {
+                        const index = coinRemovalList.findIndex((row) => {
                             return row.coin === coinBalance.currency.toUpperCase();
                         });
 
-                        this.CoinRemovalList.splice(index, 1);
+                        coinRemovalList.splice(index, 1);
 
                         console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${(quantity * ticker.k).toFixed(2)} ${QUOTE}`);
                     }
                 }
             }
         }
+
+        await this.setCoinRemovalList(coinRemovalList);
 
         /**
          * Get the available funds that are not invested.
@@ -283,19 +311,19 @@ export class Trade {
         /**
          * Calculate the current portfolio worth.
          */
-         const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, tickers);
+        const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, tickers);
 
-         /**
-          * If the portfolio worth is zero, there is nothing to rebalance and we can abort.
-          */
-         if (portfolioWorth === 0) {
-             return;
-         }
- 
-         /**
-          * Calculate the worth that each coin is deviating from the average.
-          */
-         const distributionDelta = this.Calculation.getDistributionDelta(portfolioWorth, tradableCoins, balance, tickers);
+        /**
+         * If the portfolio worth is zero, there is nothing to rebalance and we can abort.
+         */
+        if (portfolioWorth === 0) {
+            return;
+        }
+
+        /**
+         * Calculate the worth that each coin is deviating from the average.
+         */
+        const distributionDelta = this.Calculation.getDistributionDelta(portfolioWorth, tradableCoins, balance, tickers);
 
         /**
          * Re-invest into underperforming coins.
@@ -774,7 +802,8 @@ export class Trade {
          * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
          * not stablecoins.
          */
-        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, this.CoinRemovalList);
+        const coinRemovalList = await this.getCoinRemovalList();
+        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
 
         /**
          * Rebalance
@@ -810,7 +839,8 @@ export class Trade {
          * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
          * not stablecoins.
          */
-        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, this.CoinRemovalList);
+        const coinRemovalList = await this.getCoinRemovalList();
+        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
 
         /**
          * Invest

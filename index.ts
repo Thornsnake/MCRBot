@@ -18,12 +18,10 @@ class Bot {
         /**
          * Make sure the credentials are valid an we can talk to the API.
          */
-        try {
-            await this._trade.Account.all();
-        }
-        catch(err) {
-            console.log("Unable to connect to the API! Please make sure you've set the APIKEY and SECRET and have a network connection!")
-            console.log(err);
+        const balance = await this._trade.Account.all();
+
+        if (!balance) {
+            console.log("Unable to connect to the API! Please make sure you've set the APIKEY and SECRET and have a network connection!");
             return false;
         }
 
@@ -113,6 +111,8 @@ class Bot {
         if (!configurationValid) {
             return;
         }
+
+        await this._trade.rebalance();
 
         /**
          * Define exit events to cleanly shut down the bot.
