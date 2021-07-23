@@ -393,6 +393,7 @@ export class Trade {
          * Sell overperforming coins.
          */
         let soldCoinWorth = 0;
+        const ignoreList = [];
 
         for (const tradableCoin of tradableCoins) {
             const instrument = instruments.find((row) => {
@@ -430,6 +431,7 @@ export class Trade {
 
             if (sold) {
                 soldCoinWorth += coin.deviation;
+                ignoreList.push(coin.name);
 
                 console.log(`[SELL] ${tradableCoin} for ${coin.deviation.toFixed(2)} ${QUOTE}`);
             }
@@ -450,8 +452,6 @@ export class Trade {
         /**
          * Re-invest into underperforming coins.
          */
-        const ignoreList = [];
-
         for (let i = 0; i < tradableCoins.length; i++) {
             const lowestPerformer = this.Calculation.getLowestPerformer(distributionDelta, ignoreList);
             ignoreList.push(lowestPerformer.name);
@@ -532,9 +532,11 @@ export class Trade {
          * Calculate the worth that each coin is deviating from the average.
          */
         const distributionDelta = this.Calculation.getDistributionDelta(portfolioWorth, tradableCoins, balance, tickers);
+        let ignoreList = [];
 
         for (const coin of distributionDelta) {
             if (coin.percentage <= 0 - THRESHOLD) {
+                ignoreList.push(coin.name);
                 console.log(`[CHECK] ${coin.name} deviates ${coin.deviation.toFixed(2)} ${QUOTE} (${coin.percentage.toFixed(2)}%) -> [UNDERPERFORMING]`);
             }
         }
@@ -555,7 +557,6 @@ export class Trade {
          * Sell well performing coins until we have enough money to bring up the underperformers.
          */
         let soldCoinWorth = 0;
-        let ignoreList = [];
 
         for (let i = 0; i < tradableCoins.length; i++) {
             const highestPerformer = this.Calculation.getHighestPerformer(distributionDelta, ignoreList);
@@ -582,7 +583,7 @@ export class Trade {
             const minimumQuantity = this.minimumSellQuantity(instrument);
 
             if (minimumQuantity * ticker.k >= underperformerWorth) {
-                break;
+                continue;
             }
 
             if (quantity < minimumQuantity) {
