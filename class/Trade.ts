@@ -332,6 +332,11 @@ export class Trade {
 
         for (let i = 0; i < tradableCoins.length; i++) {
             const lowestPerformer = this.Calculation.getLowestPerformer(distributionDelta, ignoreList);
+
+            if (!lowestPerformer) {
+                continue;
+            }
+
             ignoreList.push(lowestPerformer.name);
 
             const instrument = instruments.find((row) => {
@@ -482,6 +487,11 @@ export class Trade {
          */
         for (let i = 0; i < tradableCoins.length; i++) {
             const lowestPerformer = this.Calculation.getLowestPerformer(distributionDelta, ignoreList);
+
+            if (!lowestPerformer) {
+                continue;
+            }
+
             ignoreList.push(lowestPerformer.name);
 
             const instrument = instruments.find((row) => {
@@ -588,6 +598,11 @@ export class Trade {
 
         for (let i = 0; i < tradableCoins.length; i++) {
             const highestPerformer = this.Calculation.getHighestPerformer(distributionDelta, ignoreList);
+
+            if (!highestPerformer) {
+                continue;
+            }
+
             ignoreList.push(highestPerformer.name);
 
             const instrument = instruments.find((row) => {
@@ -647,6 +662,11 @@ export class Trade {
 
         for (let i = 0; i < tradableCoins.length; i++) {
             const lowestPerformer = this.Calculation.getLowestPerformer(distributionDelta, ignoreList);
+
+            if (!lowestPerformer) {
+                continue;
+            }
+
             ignoreList.push(lowestPerformer.name);
 
             const instrument = instruments.find((row) => {
