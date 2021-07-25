@@ -323,26 +323,16 @@ export class Trade {
         }
 
         /**
-         * Calculate the worth that each coin is deviating from the average.
+         * Calculate the worth that should be invested into each coin.
          */
-        const distributionDelta = this.Calculation.getDistributionDelta(portfolioWorth, tradableCoins, balance, tickers);
+        const coinWorth = soldCoinWorth / tradableCoins.length;
 
         /**
-         * Re-invest into underperforming coins.
+         * Re-invest into tradable coins.
          */
-        const ignoreList = [];
-
-        for (let i = 0; i < tradableCoins.length; i++) {
-            const lowestPerformer = this.Calculation.getLowestPerformer(distributionDelta, ignoreList);
-
-            if (!lowestPerformer) {
-                continue;
-            }
-
-            ignoreList.push(lowestPerformer.name);
-
+        for (const coin of tradableCoins) {
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === lowestPerformer.name && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return coin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -350,7 +340,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === lowestPerformer.name && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -360,10 +350,10 @@ export class Trade {
             const minimumNotional = this.Calculation.fixNotional(instrument, this.Calculation.minimumBuyNotional(instrument, ticker));
 
             if (minimumNotional > soldCoinWorth) {
-                break;
+                continue;
             }
 
-            let buyNotional = this.Calculation.fixNotional(instrument, Math.abs(lowestPerformer.deviation));
+            let buyNotional = this.Calculation.fixNotional(instrument, coinWorth);
 
             if (buyNotional < minimumNotional) {
                 buyNotional = minimumNotional;
@@ -378,7 +368,7 @@ export class Trade {
             if (bought) {
                 soldCoinWorth -= buyNotional;
 
-                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional.toFixed(2)} ${QUOTE}`);
+                console.log(`[BUY] ${coin} for ${buyNotional.toFixed(2)} ${QUOTE}`);
             }
         }
     }
