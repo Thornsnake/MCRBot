@@ -277,6 +277,8 @@ export class Trade {
                 });
 
                 if ((coinRemoval && coinRemoval.execute < Date.now()) || excluded) {
+                    console.log(`[CHECK] ${coinBalance.currency.toUpperCase()} should not be in the portfolio`);
+
                     const sold = await this.sell(instrument, quantity);
 
                     if (sold) {
@@ -740,6 +742,8 @@ export class Trade {
         if (INVESTMENT > availableFunds) {
             return;
         }
+
+        console.log("[CHECK] Investing new funds");
 
         /**
          * Invest into coins.
