@@ -167,6 +167,18 @@ export class Trade {
         }
 
         /**
+         * Calculate the current portfolio worth.
+         */
+        const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, tickers);
+
+        /**
+         * If the portfolio worth is zero, there is nothing to rebalance and we can abort.
+         */
+        if (portfolioWorth === 0) {
+            return;
+        }
+
+        /**
          * Check if a coin has fallen out of the set market cap bound.
          */
         let shouldContinue = false;
@@ -311,18 +323,6 @@ export class Trade {
         }
 
         /**
-         * Calculate the current portfolio worth.
-         */
-        const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, tickers);
-
-        /**
-         * If the portfolio worth is zero, there is nothing to rebalance and we can abort.
-         */
-        if (portfolioWorth === 0) {
-            return;
-        }
-
-        /**
          * Calculate the worth that should be invested into each coin.
          */
         const coinWorth = soldCoinWorth / tradableCoins.length;
@@ -332,7 +332,7 @@ export class Trade {
          */
         for (const coin of tradableCoins) {
             const instrument = instruments.find((row) => {
-                return coin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === coin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
             });
 
             if (!instrument) {
