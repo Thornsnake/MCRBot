@@ -733,7 +733,7 @@ export class Trade {
             return;
         }
 
-        console.log("[CHECK] Investing new funds");
+        console.log("[CHECK] Investing new funds into portfolio");
 
         /**
          * Invest into coins.
