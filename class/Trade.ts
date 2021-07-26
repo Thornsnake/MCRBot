@@ -152,7 +152,7 @@ export class Trade {
         /**
          * Get the current account balance of the user for all coins.
          */
-        const balance = await this.Account.all();
+        let balance = await this.Account.all();
 
         /**
          * Get the ticker for all instruments on crypto.com.
@@ -313,6 +313,7 @@ export class Trade {
         /**
          * Get the available funds that are not invested.
          */
+        balance = await this.Account.all();
         const availableFunds = this.Calculation.getAvailableFunds(balance);
 
         /**
@@ -377,7 +378,7 @@ export class Trade {
         /**
          * Get the current account balance of the user for all coins.
          */
-        const balance = await this.Account.all();
+        let balance = await this.Account.all();
 
         /**
          * Get the ticker for all instruments on crypto.com.
@@ -465,6 +466,7 @@ export class Trade {
         /**
          * Get the available funds that are not invested.
          */
+        balance = await this.Account.all();
         const availableFunds = this.Calculation.getAvailableFunds(balance);
 
         /**
@@ -532,7 +534,7 @@ export class Trade {
         /**
          * Get the current account balance of the user for all coins.
          */
-        const balance = await this.Account.all();
+        let balance = await this.Account.all();
 
         /**
          * Get the ticker for all instruments on crypto.com.
@@ -638,6 +640,7 @@ export class Trade {
         /**
          * Get the available funds that are not invested.
          */
+        balance = await this.Account.all();
         const availableFunds = this.Calculation.getAvailableFunds(balance);
 
         /**
