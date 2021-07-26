@@ -112,8 +112,6 @@ class Bot {
             return;
         }
 
-        await this._trade.rebalance();
-
         /**
          * Define exit events to cleanly shut down the bot.
          */
