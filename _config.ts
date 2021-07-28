@@ -99,8 +99,8 @@ export const THRESHOLD = 5;
  * You can not include the quote currency here!
  */
  export const WEIGHT: { [key: string]: number } = {
-    "USDC": 10,
-    "BTC": 10
+    //"USDC": 10,
+    //"BTC": 10
 };
 
 /**
