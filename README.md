@@ -22,8 +22,7 @@ Navigate to the folder you want MCRBot to be located in. Then run `git clone htt
 Navigate into the bot folder and run `sh install.sh` to download all package requirements and compile the source code.
 
 ## Configuration
-To configure the bot, run `cp _config.ts config.ts` to make a copy of the configuration template. You can now open the `config.ts` file with your favorite file editor. In this guide it is presumed you are using `vim`. If you do not have Vim installed, you can do so with `apt-get install vim.`
-Open the configuration file with `vim config.ts` and you should see the following list of configuration options.
+To configure the bot, open the `config.ts` file with your favorite file editor and you should see the following list of configuration options.
 
 | Option               | Type     | Description
 | -------------------- | -------- | ---
@@ -40,4 +39,14 @@ Open the configuration file with `vim config.ts` and you should see the followin
 | WEIGHT               | object   | The weight in percent a coin should have in the portfolio. The remaining weight will be split over all other coins.
 | DRY                  | boolean  | Dry run. Don't execute the orders on the exchange. This is a debug feature.
 
-If you need more detailed explanations what each option does, read the comments in the configuration file. They should explain things well enough.
+If you need more detailed explanations what each option does, read the comments in the configuration file. They should explain things well enough. When you are done, save the file.
+
+## Starting, Restarting and Stopping
+You can easily start, restart and stop the bot by executing the corresponding scripts, either with `sh start.sh`, `sh restart.sh` or `sh stop.sh`.
+
+## Monitoring and Logs
+To monitor you currently running bot, enter `pm2 monit` and select it with the arrow keys in the list on the left.
+If you would like to check the log files, you can usually find them under `/root/.pm2/logs/` or you can check the latest log lines with `pm2 logs MCRBot`. For more PM2 commands, visit the [Quick Start Page](https://pm2.keymetrics.io/docs/usage/quick-start/).
+
+## Updating the Bot
+To update the bot to the newest version, execute `sh update.sh`. This will also automatically restart your bot after the update. Your current configuration will remain the same.
