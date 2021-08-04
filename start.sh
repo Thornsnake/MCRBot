@@ -9,7 +9,7 @@ if pm2 list | grep MCRBot >/dev/null 2>&1 ; then
     sh restart.sh
 else
     # Compile the typescript files to javascript
-    ./node_modules/.bin/tsc config.ts;
+    ./node_modules/.bin/tsc;
 
     # Start the bot
     pm2 start index.js --name MCRBot --time;
