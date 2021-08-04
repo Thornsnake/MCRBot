@@ -9,6 +9,7 @@ import { Calculation } from "./Calculation.js";
 import { INVESTMENT, QUOTE, THRESHOLD, DRY, EXCLUDE } from "../config.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 import { Disk } from "./Disk.js";
+import { IPortfolioSnapshot } from "../interface/IPortfolioSnapshot.js";
 
 enum ETradeType {
     INVEST = "invest",
@@ -83,6 +84,24 @@ export class Trade {
         }
 
         await this.Disk.save("./data/CoinRemovalList.json", JSON.stringify(coinRemovalList));
+    }
+
+    private async setPortfolioSnapshot(portfolioSnapshot: IPortfolioSnapshot) {
+        const currentDate = new Date();
+        
+        const year = currentDate.getFullYear().toString().padStart(4, "0");
+        const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
+        const day = currentDate.getDate().toString().padStart(2, "0");
+        const hour = currentDate.getHours().toString().padStart(2, "0");
+        const minute = currentDate.getMinutes().toString().padStart(2, "0");
+
+        const directoryExists = await this.Disk.exists(`./data/snapshot/${year}/${month}/${day}`);
+
+        if (!directoryExists) {
+            await this.Disk.createDirectory(`./data/snapshot/${year}/${month}/${day}`, true);
+        }
+
+        await this.Disk.save(`./data/snapshot/${year}/${month}/${day}/${hour}${minute}.json`, JSON.stringify(portfolioSnapshot));
     }
 
     private minimumSellQuantity(instrument: IInstrument) {
@@ -834,6 +853,23 @@ export class Trade {
          */
         await this.rebalanceOverperformers(instruments, tradableCoins);
         await this.rebalanceUnderperformers(instruments, tradableCoins);
+
+        /**
+         * Save a snapshot of the new portfolio.
+         */
+        const balance = await this.Account.all();
+        const tickers = await this.Ticker.all();
+
+        const portfolio: IPortfolioSnapshot = {};
+
+        for (const coin of tradableCoins) {
+            portfolio[coin] = {
+                quantity: balance.find((row) => row.currency.toUpperCase() === coin).available,
+                price: tickers.find((row) => row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase()).k
+            }
+        }
+
+        await this.setPortfolioSnapshot(portfolio);
     }
 
     public async invest() {
@@ -870,5 +906,22 @@ export class Trade {
          * Invest
          */
         await this.investMoney(instruments, tradableCoins);
+
+        /**
+         * Save a snapshot of the new portfolio.
+         */
+        const balance = await this.Account.all();
+        const tickers = await this.Ticker.all();
+
+        const portfolio: IPortfolioSnapshot = {};
+
+        for (const coin of tradableCoins) {
+            portfolio[coin] = {
+                quantity: balance.find((row) => row.currency.toUpperCase() === coin).available,
+                price: tickers.find((row) => row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase()).k
+            }
+        }
+
+        await this.setPortfolioSnapshot(portfolio);
     }
 }
