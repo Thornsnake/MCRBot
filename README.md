@@ -45,7 +45,7 @@ If you need more detailed explanations what each option does, read the comments 
 You can easily start, restart and stop the bot by executing the corresponding scripts, either with `sh start.sh`, `sh restart.sh` or `sh stop.sh`.
 
 ## Monitoring and Logs
-To monitor you currently running bot, enter `pm2 monit` and select it with the arrow keys in the list on the left.
+To monitor your currently running bot, enter `pm2 monit` and select it with the arrow keys in the list on the left.
 If you would like to check the log files, you can usually find them under `/root/.pm2/logs/` or you can check the latest log lines with `pm2 logs MCRBot`. For more PM2 commands, visit the [Quick Start Page](https://pm2.keymetrics.io/docs/usage/quick-start/).
 
 ## Updating the Bot
