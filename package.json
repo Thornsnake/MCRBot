@@ -9,10 +9,12 @@
   "author": "Manuel Adelwöhrer",
   "license": "ISC",
   "dependencies": {
+    "@types/better-queue": "^3.8.3",
     "@types/crypto-js": "^4.0.2",
     "@types/node": "^16.3.2",
     "@types/node-cron": "^2.0.4",
     "axios": "^0.21.1",
+    "better-queue": "^3.8.10",
     "cron-validator": "^1.2.1",
     "crypto-js": "^4.0.0",
     "node-cron": "^3.0.0",

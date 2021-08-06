@@ -1,17 +1,39 @@
 import cronJob, { ScheduledTask } from "node-cron";
 import { Trade } from "./class/Trade.js";
-import { INVESTMENT, QUOTE, SCHEDULE, THRESHOLD, TOP, WEIGHT } from "./config.js";
+import { CONFIG } from "./config.js";
 import cronValidator from "cron-validator";
+import Queue from "better-queue";
 
 class Bot {
     private _trade: Trade;
+    private _trailingStopSchedule: ScheduledTask;
     private _investingSchedule: ScheduledTask;
     private _rebalancingSchedule: ScheduledTask;
+    private _queue: Queue;
 
     constructor() {
         this._trade = new Trade();
+        this._trailingStopSchedule = null;
         this._investingSchedule = null;
         this._rebalancingSchedule = null;
+
+        this._queue = new Queue(async (job: string, callback) => {
+            switch (job) {
+                case "TRAILING_STOP":
+                    await this._trade.stop();
+                    break;
+                case "INVEST":
+                    await this._trade.invest();
+                    break;
+                case "REBALANCE":
+                    await this._trade.rebalance();
+                    break;
+                default:
+                    break;
+            }
+
+            callback(null, null);
+        });
     }
 
     async check() {
@@ -28,12 +50,17 @@ class Bot {
         /**
          * Make sure the cron expressions for the schedules are valid.
          */
-        if (!cronValidator.isValidCron(SCHEDULE.INVESTING)) {
+         if (!cronValidator.isValidCron(CONFIG.SCHEDULE.TRAILING_STOP, { alias: true, allowBlankDay: true, allowSevenAsSunday: true, seconds: true })) {
+            console.log("The SCHEDULE -> TRAILING_STOP option is invalid. Please make sure you enter a valid cron expression!")
+            return false;
+        }
+
+        if (!cronValidator.isValidCron(CONFIG.SCHEDULE.INVESTING, { alias: true, allowBlankDay: true, allowSevenAsSunday: true, seconds: true })) {
             console.log("The SCHEDULE -> INVESTING option is invalid. Please make sure you enter a valid cron expression!")
             return false;
         }
 
-        if (!cronValidator.isValidCron(SCHEDULE.REBALANCE)) {
+        if (!cronValidator.isValidCron(CONFIG.SCHEDULE.REBALANCE, { alias: true, allowBlankDay: true, allowSevenAsSunday: true, seconds: true })) {
             console.log("The SCHEDULE -> REBALANCE option is invalid. Please make sure you enter a valid cron expression!")
             return false;
         }
@@ -41,7 +68,7 @@ class Bot {
         /**
          * Make sure the quote currency is valid.
          */
-        if (!["USDT", "USDC", "BTC", "CRO"].includes(QUOTE.toUpperCase())) {
+        if (!["USDT", "USDC", "BTC", "CRO"].includes(CONFIG.QUOTE.toUpperCase())) {
             console.log("The currency for the QUOTE option is not valid! Choose 'USDT', 'USDC', 'BTC' or 'CRO'!");
             return false;
         }
@@ -49,7 +76,7 @@ class Bot {
         /**
          * Make sure the investment value is bigger than 0.
          */
-        if (INVESTMENT <= 0) {
+        if (CONFIG.INVESTMENT <= 0) {
             console.log("The value of the INVESTMENT option must be larger than 0! Even if you are not planning to invest additional money, rebalancing can generate crypto dust which should be re-invested.");
             return false;
         }
@@ -57,7 +84,7 @@ class Bot {
         /**
          * Make sure the market cap limit is between 0 and 250.
          */
-        if (TOP < 0 || TOP > 250) {
+        if (CONFIG.TOP < 0 || CONFIG.TOP > 250) {
             console.log("The TOP option must be between 0 and 250!");
             return false;
         }
@@ -65,7 +92,7 @@ class Bot {
         /**
          * Make sure the rebalancing threshold is at least 1%.
          */
-        if (THRESHOLD < 1) {
+        if (CONFIG.THRESHOLD < 1) {
             console.log("The THRESHOLD option can not be lower than 1%!");
             return false;
         }
@@ -73,7 +100,7 @@ class Bot {
         /**
          * Make sure the percentage sum of the weights is not larger than 100%.
          */
-        const sum = Object.entries(WEIGHT).reduce((acc, cur) => {
+        const sum = Object.entries(CONFIG.WEIGHT).reduce((acc: number, cur: [string, number]) => {
             return acc + cur[1];
         }, 0);
 
@@ -85,7 +112,7 @@ class Bot {
         /**
          * Make sure all weights are larger than 0.
          */
-        for (const weight of Object.values(WEIGHT)) {
+        for (const weight of Object.values(CONFIG.WEIGHT)) {
             if (weight <= 0) {
                 console.log("All weights defined in the WEIGHT option must be larger than 0%!");
                 return false;
@@ -95,11 +122,44 @@ class Bot {
         /**
          * Make sure the weights don't include the quote currency.
          */
-         for (const weight of Object.keys(WEIGHT)) {
-            if (weight.toUpperCase() === QUOTE.toUpperCase()) {
+        for (const weight of Object.keys(CONFIG.WEIGHT)) {
+            if (weight.toUpperCase() === CONFIG.QUOTE.toUpperCase()) {
                 console.log("The WEIGHT option can not include the quote currency that has been set for the QUOTE option!");
                 return false;
             }
+        }
+
+        /**
+         * Make sure the minimum profit percentage of the trailing stop is at least 1%.
+         */
+        if (CONFIG.TRAILING_STOP.MIN_PROFIT < 1) {
+            console.log("The TRAILING_STOP -> MIN_PROFIT option must be 1% or larger!");
+            return false;
+        }
+
+        /**
+         * Make sure the maximum drop percentage of the trailing stop is at least 1%.
+         */
+        if (CONFIG.TRAILING_STOP.MAX_DROP < 1) {
+            console.log("The TRAILING_STOP -> MAX_DROP option must be 1% or larger!");
+            return false;
+        }
+
+        /**
+         * Make sure the minimum profit percentage of the trailing stop is larger than the maximum
+         * drop percentage..
+         */
+        if (CONFIG.TRAILING_STOP.MIN_PROFIT <= CONFIG.TRAILING_STOP.MAX_DROP) {
+            console.log("The TRAILING_STOP -> MIN_PROFIT option must be larger than the TRAILING_STOP -> MAX_DROP option!");
+            return false;
+        }
+
+        /**
+         * Make sure the resume option of the trailing stop is 0 or higher.
+         */
+        if (CONFIG.TRAILING_STOP.RESUME < 0) {
+            console.log("The TRAILING_STOP -> RESUME option can not be a negative number!");
+            return false;
         }
 
         return true;
@@ -122,6 +182,10 @@ class Bot {
                 console.log(`Shutting down`);
                 console.log(``);
 
+                if (this._trailingStopSchedule) {
+                    this._trailingStopSchedule.stop();
+                }
+
                 if (this._investingSchedule) {
                     this._investingSchedule.stop();
                 }
@@ -133,24 +197,32 @@ class Bot {
         }
 
         /**
+         * Initiates the trailing stop schedule.
+         */
+        this._trailingStopSchedule = cronJob.schedule(CONFIG.SCHEDULE.TRAILING_STOP, async () => {
+            this._queue.push("TRAILING_STOP");
+        });
+
+        /**
          * Initiates the investing schedule.
          */
-        this._investingSchedule = cronJob.schedule(SCHEDULE.INVESTING, async () => {
-            await this._trade.invest();
+        this._investingSchedule = cronJob.schedule(CONFIG.SCHEDULE.INVESTING, async () => {
+            this._queue.push("INVEST");
         });
 
         /**
          * Initiates the rebalancing schedule.
          */
-        this._rebalancingSchedule = cronJob.schedule(SCHEDULE.REBALANCE, async () => {
-            await this._trade.rebalance();
+        this._rebalancingSchedule = cronJob.schedule(CONFIG.SCHEDULE.REBALANCE, async () => {
+            this._queue.push("REBALANCE");
         });
 
         /**
          * Ready.
          */
-        console.log(`Investing at [${SCHEDULE.INVESTING}] with ${INVESTMENT.toFixed(2)} ${QUOTE} ...`);
-        console.log(`Rebalancing at [${SCHEDULE.REBALANCE}] with threshold of ${THRESHOLD.toFixed(2)}% ...`);
+        console.log(`Trailing Stop at [${CONFIG.SCHEDULE.TRAILING_STOP}] with ${CONFIG.TRAILING_STOP.MIN_PROFIT.toFixed(2)}% min profit and ${CONFIG.TRAILING_STOP.MAX_DROP.toFixed(2)}% max drop ...`);
+        console.log(`Investing at [${CONFIG.SCHEDULE.INVESTING}] with ${CONFIG.INVESTMENT.toFixed(2)} ${CONFIG.QUOTE} ...`);
+        console.log(`Rebalancing at [${CONFIG.SCHEDULE.REBALANCE}] with threshold of ${CONFIG.THRESHOLD.toFixed(2)}% ...`);
         console.log(``);
     }
 }

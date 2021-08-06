@@ -1,4 +1,4 @@
-import { EXCLUDE, INCLUDE, QUOTE, THRESHOLD, INVESTMENT, WEIGHT } from "../config.js";
+import { CONFIG } from "../config.js";
 import { IAccount } from "../interface/IAccount.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 import { IDistributionDelta } from "../interface/IDistributionDelta.js";
@@ -12,11 +12,11 @@ export class Calculation {
         const tradableCoins: string[] = [];
 
         for (const instrument of instruments) {
-            if (instrument.quote_currency.toUpperCase() !== QUOTE.toUpperCase()) {
+            if (instrument.quote_currency.toUpperCase() !== CONFIG.QUOTE.toUpperCase()) {
                 continue;
             }
 
-            if (EXCLUDE.includes(instrument.base_currency.toUpperCase())) {
+            if (CONFIG.EXCLUDE.includes(instrument.base_currency.toUpperCase())) {
                 continue;
             }
 
@@ -37,14 +37,14 @@ export class Calculation {
             }
         }
 
-        for (const coin of INCLUDE) {
+        for (const coin of CONFIG.INCLUDE) {
             const tradableCoin = tradableCoins.find((row) => {
                 return row === coin;
             });
 
             if (!tradableCoin) {
                 const instrument = instruments.find((row) => {
-                    return row.base_currency.toUpperCase() === coin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                    return row.base_currency.toUpperCase() === coin && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
                 });
 
                 if (instrument) {
@@ -81,7 +81,7 @@ export class Calculation {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.split("_")[0].toUpperCase() === coin.currency.toUpperCase() && row.i.split("_")[1].toUpperCase() === QUOTE.toUpperCase();
+                return row.i.split("_")[0].toUpperCase() === coin.currency.toUpperCase() && row.i.split("_")[1].toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -107,14 +107,14 @@ export class Calculation {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.split("_")[0].toUpperCase() === coin.currency.toUpperCase() && row.i.split("_")[1].toUpperCase() === QUOTE.toUpperCase();
+                return row.i.split("_")[0].toUpperCase() === coin.currency.toUpperCase() && row.i.split("_")[1].toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!ticker) {
                 continue;
             }
 
-            const reservedWeight = Object.entries(WEIGHT).reduce((acc, cur) => {
+            const reservedWeight = Object.entries(CONFIG.WEIGHT).reduce((acc: number, cur: [string, number]) => {
                 if (tradableCoins.includes(cur[0].toUpperCase())) {
                     return acc + cur[1];
                 }
@@ -123,7 +123,7 @@ export class Calculation {
                 }
             }, 0);
 
-            const validReservedCoins = Object.entries(WEIGHT).reduce((acc, cur) => {
+            const validReservedCoins = Object.entries(CONFIG.WEIGHT).reduce((acc, cur) => {
                 if (tradableCoins.includes(cur[0].toUpperCase())) {
                     return acc + 1;
                 }
@@ -132,7 +132,7 @@ export class Calculation {
                 }
             }, 0);
 
-            const coinTarget = WEIGHT[tradableCoin] ? portfolioWorth * (WEIGHT[tradableCoin] / 100) : portfolioWorth * ((100 - reservedWeight) / 100) / (tradableCoins.length - validReservedCoins);
+            const coinTarget = CONFIG.WEIGHT[tradableCoin] ? portfolioWorth * (CONFIG.WEIGHT[tradableCoin] / 100) : portfolioWorth * ((100 - reservedWeight) / 100) / (tradableCoins.length - validReservedCoins);
             const deviation = (coin.available * ticker.b) - coinTarget;
             const percentageDelta = (((deviation + coinTarget) / coinTarget) - 1) * 100;
 
@@ -149,7 +149,7 @@ export class Calculation {
 
     public getAvailableFunds(balance: IAccount[]) {
         const funds = balance.find((row) => {
-            return row.currency.toUpperCase() === QUOTE.toUpperCase();
+            return row.currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
         });
 
         if (!funds) {
@@ -184,7 +184,7 @@ export class Calculation {
         let underperformerWorth = 0;
 
         for (const coin of distributionDelta) {
-            if (coin.percentage <= 0 - THRESHOLD) {
+            if (coin.percentage <= 0 - CONFIG.THRESHOLD) {
                 underperformerWorth += Math.abs(coin.deviation);
             }
         }
@@ -229,7 +229,7 @@ export class Calculation {
     }
 
     public getCoinInvestmentTarget(tradableCoins: string[], coin: string): number {
-        const reservedWeight = Object.entries(WEIGHT).reduce((acc, cur) => {
+        const reservedWeight = Object.entries(CONFIG.WEIGHT).reduce((acc: number, cur: [string, number]) => {
             if (tradableCoins.includes(cur[0])) {
                 return acc + cur[1];
             }
@@ -238,7 +238,7 @@ export class Calculation {
             }
         }, 0);
 
-        const validReservedCoins = Object.entries(WEIGHT).reduce((acc, cur) => {
+        const validReservedCoins = Object.entries(CONFIG.WEIGHT).reduce((acc, cur) => {
             if (tradableCoins.includes(cur[0])) {
                 return acc + 1;
             }
@@ -247,6 +247,6 @@ export class Calculation {
             }
         }, 0);
 
-        return WEIGHT[coin] ? INVESTMENT * (WEIGHT[coin] / 100) : INVESTMENT * ((100 - reservedWeight) / 100) / (tradableCoins.length - validReservedCoins);
+        return CONFIG.WEIGHT[coin] ? CONFIG.INVESTMENT * (CONFIG.WEIGHT[coin] / 100) : CONFIG.INVESTMENT * ((100 - reservedWeight) / 100) / (tradableCoins.length - validReservedCoins);
     }
 }

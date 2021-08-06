@@ -6,14 +6,16 @@ import { CoinGecko } from "./CoinGecko.js";
 import { Account } from "./Account.js";
 import { Ticker } from "./Ticker.js";
 import { Calculation } from "./Calculation.js";
-import { INVESTMENT, QUOTE, THRESHOLD, DRY, EXCLUDE } from "../config.js";
+import { CONFIG } from "../config.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 import { Disk } from "./Disk.js";
 import { IPortfolioSnapshot } from "../interface/IPortfolioSnapshot.js";
+import { IPortfolioATH } from "../interface/IPortfolioATH.js";
 
 enum ETradeType {
     INVEST = "invest",
     REBALANCE = "rebalance",
+    TRAILING_STOP = "trailingstop"
 }
 
 export class Trade {
@@ -88,7 +90,7 @@ export class Trade {
 
     private async setPortfolioSnapshot(portfolioSnapshot: IPortfolioSnapshot) {
         const currentDate = new Date();
-        
+
         const year = currentDate.getFullYear().toString().padStart(4, "0");
         const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
         const day = currentDate.getDate().toString().padStart(2, "0");
@@ -104,6 +106,35 @@ export class Trade {
         await this.Disk.save(`./data/snapshot/${year}/${month}/${day}/${hour}${minute}.json`, JSON.stringify(portfolioSnapshot));
     }
 
+    private async getPortfolioATH(): Promise<IPortfolioATH> {
+        const fileExists = await this.Disk.exists("./data/PortfolioATH.json");
+
+        if (fileExists) {
+            const data = await this.Disk.load("./data/PortfolioATH.json");
+
+            return JSON.parse(data);
+        }
+        else {
+            return {
+                active: false,
+                allTimeHigh: 0,
+                investment: 0,
+                resume: 0,
+                triggered: false
+            };
+        }
+    }
+
+    private async setPortfolioATH(portfolioATH: IPortfolioATH) {
+        const directoryExists = await this.Disk.exists("./data");
+
+        if (!directoryExists) {
+            await this.Disk.createDirectory("./data", false);
+        }
+
+        await this.Disk.save("./data/PortfolioATH.json", JSON.stringify(portfolioATH));
+    }
+
     private minimumSellQuantity(instrument: IInstrument) {
         return (1 / Math.pow(10, instrument.quantity_decimals));
     }
@@ -111,7 +142,7 @@ export class Trade {
     private async buy(instrument: IInstrument, notional: number, tradeType: ETradeType): Promise<boolean> {
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        if (DRY) {
+        if (CONFIG.DRY) {
             return true;
         }
 
@@ -144,7 +175,7 @@ export class Trade {
     private async sell(instrument: IInstrument, quantity: number, tradeType: ETradeType) {
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        if (DRY) {
+        if (CONFIG.DRY) {
             return true;
         }
 
@@ -213,7 +244,7 @@ export class Trade {
 
         for (const coinBalance of balance) {
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === coinBalance.currency.toUpperCase() && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === coinBalance.currency.toUpperCase() && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -221,7 +252,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === coinBalance.currency.toUpperCase() && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === coinBalance.currency.toUpperCase() && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -240,7 +271,7 @@ export class Trade {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
 
-                const excluded = EXCLUDE.find((row) => {
+                const excluded = CONFIG.EXCLUDE.find((row) => {
                     return row.toUpperCase() === coinBalance.currency.toUpperCase();
                 });
 
@@ -283,7 +314,7 @@ export class Trade {
 
         for (const coinBalance of balance) {
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === coinBalance.currency.toUpperCase() && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === coinBalance.currency.toUpperCase() && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -291,7 +322,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === coinBalance.currency.toUpperCase() && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === coinBalance.currency.toUpperCase() && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -310,7 +341,7 @@ export class Trade {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
 
-                const excluded = EXCLUDE.find((row) => {
+                const excluded = CONFIG.EXCLUDE.find((row) => {
                     return row.toUpperCase() === coinBalance.currency.toUpperCase();
                 });
 
@@ -328,7 +359,7 @@ export class Trade {
 
                         coinRemovalList.splice(index, 1);
 
-                        console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${(quantity * ticker.k).toFixed(2)} ${QUOTE}`);
+                        console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${(quantity * ticker.k).toFixed(2)} ${CONFIG.QUOTE}`);
                     }
                 }
             }
@@ -359,7 +390,7 @@ export class Trade {
          */
         for (const coin of tradableCoins) {
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === coin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === coin && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -367,7 +398,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -395,7 +426,7 @@ export class Trade {
             if (bought) {
                 soldCoinWorth -= buyNotional;
 
-                console.log(`[BUY] ${coin} for ${buyNotional.toFixed(2)} ${QUOTE}`);
+                console.log(`[BUY] ${coin} for ${buyNotional.toFixed(2)} ${CONFIG.QUOTE}`);
             }
         }
     }
@@ -436,8 +467,8 @@ export class Trade {
         const distributionDelta = this.Calculation.getDistributionDelta(portfolioWorth, tradableCoins, balance, tickers);
 
         for (const coin of distributionDelta) {
-            if (coin.percentage >= THRESHOLD) {
-                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation.toFixed(2)} ${QUOTE} (${coin.percentage.toFixed(2)}%) -> [OVERPERFORMING]`);
+            if (coin.percentage >= CONFIG.THRESHOLD) {
+                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation.toFixed(2)} ${CONFIG.QUOTE} (${coin.percentage.toFixed(2)}%) -> [OVERPERFORMING]`);
             }
         }
 
@@ -449,7 +480,7 @@ export class Trade {
 
         for (const tradableCoin of tradableCoins) {
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === tradableCoin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === tradableCoin && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -457,7 +488,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === tradableCoin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === tradableCoin && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -468,7 +499,7 @@ export class Trade {
                 return row.name === tradableCoin;
             });
 
-            if (coin.percentage < THRESHOLD) {
+            if (coin.percentage < CONFIG.THRESHOLD) {
                 continue;
             }
 
@@ -485,7 +516,7 @@ export class Trade {
                 soldCoinWorth += coin.deviation;
                 ignoreList.push(coin.name);
 
-                console.log(`[SELL] ${tradableCoin} for ${coin.deviation.toFixed(2)} ${QUOTE}`);
+                console.log(`[SELL] ${tradableCoin} for ${coin.deviation.toFixed(2)} ${CONFIG.QUOTE}`);
             }
         }
 
@@ -515,7 +546,7 @@ export class Trade {
             ignoreList.push(lowestPerformer.name);
 
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === lowestPerformer.name && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === lowestPerformer.name && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -523,7 +554,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === lowestPerformer.name && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === lowestPerformer.name && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -551,7 +582,7 @@ export class Trade {
             if (bought) {
                 soldCoinWorth -= buyNotional;
 
-                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional.toFixed(2)} ${QUOTE}`);
+                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional.toFixed(2)} ${CONFIG.QUOTE}`);
             }
         }
     }
@@ -593,9 +624,9 @@ export class Trade {
         let ignoreList = [];
 
         for (const coin of distributionDelta) {
-            if (coin.percentage <= 0 - THRESHOLD) {
+            if (coin.percentage <= 0 - CONFIG.THRESHOLD) {
                 ignoreList.push(coin.name);
-                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation.toFixed(2)} ${QUOTE} (${coin.percentage.toFixed(2)}%) -> [UNDERPERFORMING]`);
+                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation.toFixed(2)} ${CONFIG.QUOTE} (${coin.percentage.toFixed(2)}%) -> [UNDERPERFORMING]`);
             }
         }
 
@@ -626,7 +657,7 @@ export class Trade {
             ignoreList.push(highestPerformer.name);
 
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === highestPerformer.name && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === highestPerformer.name && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -634,7 +665,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === highestPerformer.name && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === highestPerformer.name && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -659,7 +690,7 @@ export class Trade {
                 underperformerWorth -= quantity * ticker.k;
                 soldCoinWorth += quantity * ticker.k;
 
-                console.log(`[SELL] ${highestPerformer.name} for ${sellNotional.toFixed(2)} ${QUOTE}`);
+                console.log(`[SELL] ${highestPerformer.name} for ${sellNotional.toFixed(2)} ${CONFIG.QUOTE}`);
             }
         }
 
@@ -691,7 +722,7 @@ export class Trade {
             ignoreList.push(lowestPerformer.name);
 
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === lowestPerformer.name && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === lowestPerformer.name && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -699,7 +730,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === lowestPerformer.name && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === lowestPerformer.name && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -727,7 +758,7 @@ export class Trade {
             if (bought) {
                 soldCoinWorth -= buyNotional;
 
-                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional.toFixed(2)} ${QUOTE}`);
+                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional.toFixed(2)} ${CONFIG.QUOTE}`);
             }
         }
     }
@@ -758,7 +789,7 @@ export class Trade {
         /**
          * Make sure the investment worth is not higher than the available funds.
          */
-        if (INVESTMENT > availableFunds) {
+        if (CONFIG.INVESTMENT > availableFunds) {
             return;
         }
 
@@ -769,7 +800,7 @@ export class Trade {
          */
         for (const tradableCoin of tradableCoins) {
             const instrument = instruments.find((row) => {
-                return row.base_currency.toUpperCase() === tradableCoin && row.quote_currency.toUpperCase() === QUOTE.toUpperCase();
+                return row.base_currency.toUpperCase() === tradableCoin && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!instrument) {
@@ -777,7 +808,7 @@ export class Trade {
             }
 
             const ticker = tickers.find((row) => {
-                return row.i.toUpperCase().split("_")[0] === tradableCoin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase();
+                return row.i.toUpperCase().split("_")[0] === tradableCoin && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase();
             });
 
             if (!ticker) {
@@ -802,12 +833,34 @@ export class Trade {
             if (bought) {
                 availableFunds -= buyNotional;
 
-                console.log(`[BUY] ${tradableCoin} for ${buyNotional.toFixed(2)} ${QUOTE}`);
+                console.log(`[BUY] ${tradableCoin} for ${buyNotional.toFixed(2)} ${CONFIG.QUOTE}`);
             }
         }
+
+        /**
+         * Add the investment to the trailing stop statistics.
+         */
+        const portfolioATH = await this.getPortfolioATH();
+        const investment = portfolioATH.investment + CONFIG.INVESTMENT;
+
+        await this.setPortfolioATH({
+            ...portfolioATH,
+            investment: investment
+        });
     }
 
     public async rebalance() {
+        /**
+         * Check if the trailing stop has been triggered.
+         */
+        if (CONFIG.TRAILING_STOP.ACTIVE) {
+            const portfolioATH = await this.getPortfolioATH();
+
+            if (portfolioATH.triggered) {
+                return;
+            }
+        }
+
         /**
          * Get all instruments that are available on crypto.com.
          */
@@ -865,7 +918,7 @@ export class Trade {
         for (const coin of tradableCoins) {
             portfolio[coin] = {
                 quantity: balance.find((row) => row.currency.toUpperCase() === coin).available,
-                price: tickers.find((row) => row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase()).k
+                price: tickers.find((row) => row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase()).k
             }
         }
 
@@ -873,6 +926,17 @@ export class Trade {
     }
 
     public async invest() {
+        /**
+         * Check if the trailing stop has been triggered.
+         */
+        if (CONFIG.TRAILING_STOP.ACTIVE) {
+            const portfolioATH = await this.getPortfolioATH();
+
+            if (portfolioATH.triggered) {
+                return;
+            }
+        }
+
         /**
          * Get all instruments that are available on crypto.com.
          */
@@ -918,10 +982,161 @@ export class Trade {
         for (const coin of tradableCoins) {
             portfolio[coin] = {
                 quantity: balance.find((row) => row.currency.toUpperCase() === coin).available,
-                price: tickers.find((row) => row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === QUOTE.toUpperCase()).k
+                price: tickers.find((row) => row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase()).k
             }
         }
 
         await this.setPortfolioSnapshot(portfolio);
+    }
+
+    public async stop() {
+        /**
+         * If the trailing stop is not active, abort.
+         */
+        if (!CONFIG.TRAILING_STOP.ACTIVE) {
+            return;
+        }
+
+        /**
+         * Get the current portfolio statistics for the trailing stop.
+         */
+        const portfolioATH = await this.getPortfolioATH();
+
+        if (portfolioATH.triggered) {
+            if (Date.now() < portfolioATH.resume) {
+                return;
+            }
+            else {
+                console.log("Trading now resumed after trailing stop hit.");
+                portfolioATH.active = false;
+                portfolioATH.allTimeHigh = 0;
+                portfolioATH.investment = 0;
+                portfolioATH.resume = 0;
+                portfolioATH.triggered = false;
+
+                /**
+                 * Save the current portfolio statistics for the trailing stop.
+                 */
+                await this.setPortfolioATH(portfolioATH);
+            }
+        }
+
+        /**
+         * If there's no investment yet, abort.
+         */
+        if (portfolioATH.investment === 0) {
+            return;
+        }
+
+        /**
+         * Get all instruments that are available on crypto.com.
+         */
+        const instruments = await this.Instrument.all();
+
+        /**
+         * Get a list of stablecoins in the top X by market cap from Coin Gecko.
+         */
+        const stablecoins = await this.Coingecko.getStablecoins();
+
+        /**
+         * Get a list of coins in the top X by market cap from Coin Gecko.
+         */
+        const coins = await this.Coingecko.getCoins();
+
+        /**
+         * Make sure everything is present.
+         */
+        if (!instruments || !stablecoins || !coins) {
+            return;
+        }
+
+        /**
+         * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
+         * not stablecoins.
+         */
+        const coinRemovalList = await this.getCoinRemovalList();
+        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
+
+        /**
+        * Get the current account balance of the user for all coins.
+        */
+        const balance = await this.Account.all();
+
+        /**
+         * Get the ticker for all instruments on crypto.com.
+         */
+        const tickers = await this.Ticker.all();
+
+        /**
+         * Get the current portfolio worth.
+         */
+        const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, tickers);
+
+        /**
+         * Set the portfolio all time high.
+         */
+        portfolioATH.allTimeHigh = portfolioWorth > portfolioATH.allTimeHigh ? portfolioWorth : portfolioATH.allTimeHigh;
+
+        /**
+         * Check if the trailing stop should be switched to active.
+         */
+        portfolioATH.active = portfolioATH.active ? portfolioATH.active : ((portfolioATH.allTimeHigh / portfolioATH.investment) - 1) * 100 >= CONFIG.TRAILING_STOP.MIN_PROFIT;
+
+        if (portfolioATH.active) {
+            /**
+             * Check if the trailing stop should be triggered.
+             */
+            if (!portfolioATH.triggered) {
+                portfolioATH.triggered = ((portfolioATH.allTimeHigh / portfolioWorth) - 1) * 100 >= CONFIG.TRAILING_STOP.MAX_DROP;
+
+                if (portfolioATH.triggered) {
+                    const currentDate = new Date();
+                    portfolioATH.resume = currentDate.setHours(currentDate.getHours() + CONFIG.TRAILING_STOP.RESUME);
+
+                    /**
+                     * Sell all coins in the portfolio to the quote currency.
+                     */
+                    console.log("Trailing stop hit, selling portfolio.");
+
+                    for (const coin of balance) {
+                        const instrument = instruments.find((row) => {
+                            return row.base_currency.toUpperCase() === coin.currency.toUpperCase() && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
+                        });
+
+                        if (!instrument) {
+                            continue;
+                        }
+
+                        const ticker = tickers.find((row) => {
+                            return row.i.toUpperCase().split("_")[0] === coin.currency.toUpperCase() && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase();
+                        });
+
+                        if (!ticker) {
+                            continue;
+                        }
+
+                        const quantity = this.Calculation.fixQuantity(instrument, coin.available);
+                        const minimumQuantity = this.minimumSellQuantity(instrument);
+
+                        if (quantity < minimumQuantity) {
+                            continue;
+                        }
+
+                        const sold = await this.sell(instrument, quantity, ETradeType.TRAILING_STOP);
+
+                        if (sold) {
+                            console.log(`[SELL] ${coin.currency.toUpperCase()} for ${(quantity * ticker.k).toFixed(2)} ${CONFIG.QUOTE}`);
+                        }
+                    }
+
+                    console.log(`Portfolio sold, trading will resume in ${CONFIG.TRAILING_STOP.RESUME} hours.`);
+                }
+            }
+        }
+
+        /**
+         * Save the current portfolio statistics for the trailing stop.
+         */
+        await this.setPortfolioATH(portfolioATH);
     }
 }

@@ -1,13 +1,13 @@
 import crypto from "crypto-js";
-import { APIKEY, SECRET } from "../config.js";
+import { CONFIG } from "../config.js";
 
 export class Authentication {
     private _apiKey: string;
     private _apiSecret: string;
 
     constructor() {
-        this._apiKey = APIKEY;
-        this._apiSecret = SECRET;
+        this._apiKey = CONFIG.APIKEY;
+        this._apiSecret = CONFIG.SECRET;
     }
 
     public sign(request: any) {
