@@ -126,7 +126,7 @@ export const CONFIG = {
          * 
          * Must be at least 1%.
          */
-        MIN_PROFIT: 25,
+        MIN_PROFIT: 30,
 
         /**
          * The maximum amount in percent the portfolio worth is allowed to drop from its all time high
