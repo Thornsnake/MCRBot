@@ -24,20 +24,25 @@ Navigate into the bot folder and run `sh install.sh` to download all package req
 ## Configuration
 To configure the bot, open the `config.ts` file with your favorite file editor and you should see the following list of configuration options.
 
-| Option               | Type     | Description
-| -------------------- | -------- | ---
-| APIKEY               | string   | The API key from the crypto.com exchange.
-| SECRET               | string   | The secret key from the crypto.com exchange.
-| SCHEDULE > INVESTING | string   | The interval for the DCA investing in cron format. Defaults to `every day, 5 minutes after midnight`.
-| SCHEDULE > REBALANCE | string   | The interval for the portfolio rebalancing in cron format. Defaults to `every 15 minutes`.
-| QUOTE                | string   | The quote currency used on the exchange. Can be `USDT`, `USDC`, `BTC` or `CRO`.
-| INVESTMENT           | number   | The amount of quote currency invested during each investment interval. This will be split over all coins.
-| TOP                  | number   | The top X coins by market cap to invest into and rebalance. Set this to `0` if you want to manually manage all coins.
-| INCLUDE              | string[] | A list of coins to always invest in and rebalance, even if they are not within the market cap.
-| EXCLUDE              | string[] | A list of coins to never invest in or rebalance, even if they are within the market cap.
-| THRESHOLD            | number   | The threshold in percent that a coin's value can deviate from the average before being rebalanced.
-| WEIGHT               | object   | The weight in percent a coin should have in the portfolio. The remaining weight will be split over all other coins.
-| DRY                  | boolean  | Dry run. Don't execute the orders on the exchange. This is a debug feature.
+| Option                     | Type     | Description
+| -------------------------- | -------- | ---
+| APIKEY                     | string   | The API key from the crypto.com exchange.
+| SECRET                     | string   | The secret key from the crypto.com exchange.
+| SCHEDULE > TRAILING_STOP   | string   | The interval for the trailing stop check in cron format. Defaults to `every minute at the 30 second mark`.
+| SCHEDULE > INVESTING       | string   | The interval for the DCA investing in cron format. Defaults to `every day, 5 minutes after midnight`.
+| SCHEDULE > REBALANCE       | string   | The interval for the portfolio rebalancing in cron format. Defaults to `every 15 minutes`.
+| QUOTE                      | string   | The quote currency used on the exchange. Can be `USDT`, `USDC`, `BTC` or `CRO`.
+| INVESTMENT                 | number   | The amount of quote currency invested during each investment interval. This will be split over all coins.
+| TOP                        | number   | The top X coins by market cap to invest into and rebalance. Set this to `0` if you want to manually manage all coins.
+| INCLUDE                    | string[] | A list of coins to always invest in and rebalance, even if they are not within the market cap.
+| EXCLUDE                    | string[] | A list of coins to never invest in or rebalance, even if they are within the market cap.
+| THRESHOLD                  | number   | The threshold in percent that a coin's value can deviate from the average before being rebalanced.
+| WEIGHT                     | object   | The weight in percent a coin should have in the portfolio. The remaining weight will be split over all other coins.
+| TRAILING_STOP > ACTIVE     | boolean  | Whether the trailing stop is active or not.
+| TRAILING_STOP > MIN_PROFIT | number   | The minimum amount of profit the bot must make before the trailing stop is switched to active. If this is not triggered, the bot will just keep doing DCA.
+| TRAILING_STOP > MAX_DROP   | number   | The maximum amount of value the portfolio is allowed to lose from its all time high before the trailing stop triggers and your portfolio is sold.
+| TRAILING_STOP > RESUME     | number   | The amount of hours to wait before resuming to DCA and rebalance after the trailing stop has been triggered.
+| DRY                        | boolean  | Dry run. Don't execute the orders on the exchange. This is a debug feature.
 
 If you need more detailed explanations what each option does, read the comments in the configuration file. They should explain things well enough. When you are done, save the file.
 
