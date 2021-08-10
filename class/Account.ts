@@ -24,8 +24,7 @@ export class Account {
                         currency: currency.toUpperCase()
                     },
                     nonce: Date.now()
-                })
-            );
+                }), {timeout: 10000});
 
             return response.data.result.accounts[0];
         }
@@ -43,8 +42,7 @@ export class Account {
                     method: "private/get-account-summary",
                     params: {},
                     nonce: Date.now()
-                })
-            );
+                }), {timeout: 10000});
 
             return response.data.result.accounts;
         }

@@ -17,22 +17,28 @@ class Bot {
         this._investingSchedule = null;
         this._rebalancingSchedule = null;
 
-        this._queue = new Queue(async (job: string, callback) => {
-            switch (job) {
-                case "TRAILING_STOP":
-                    await this._trade.stop();
-                    break;
-                case "INVEST":
-                    await this._trade.invest();
-                    break;
-                case "REBALANCE":
-                    await this._trade.rebalance();
-                    break;
-                default:
-                    break;
+        this._queue = new Queue(async (job: string, callback: (arg0: any, arg1: any) => void) => {
+            try {
+                switch (job) {
+                    case "TRAILING_STOP":
+                        await this._trade.stop();
+                        break;
+                    case "INVEST":
+                        await this._trade.invest();
+                        break;
+                    case "REBALANCE":
+                        await this._trade.rebalance();
+                        break;
+                    default:
+                        break;
+                }
             }
-
-            callback(null, null);
+            catch (err) {
+                console.error(err);
+            }
+            finally {
+                callback(null, null);
+            }
         });
     }
 

@@ -6,9 +6,7 @@ export class Instrument {
 
     public async all(): Promise<IInstrument[] | undefined> {
         try {
-            const response = await axios.get(
-                "https://api.crypto.com/v2/public/get-instruments"
-            );
+            const response = await axios.get("https://api.crypto.com/v2/public/get-instruments", {timeout: 10000});
 
             return response.data.result.instruments;
         }
