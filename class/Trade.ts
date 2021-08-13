@@ -867,12 +867,12 @@ export class Trade {
         /**
          * Get a list of stablecoins in the top X by market cap from Coin Gecko.
          */
-        const stablecoins = await this.Coingecko.getStablecoins();
+        const stablecoins = await this.Coingecko.getStablecoins(false);
 
         /**
          * Get a list of coins in the top X by market cap from Coin Gecko.
          */
-        const coins = await this.Coingecko.getCoins();
+        const coins = await this.Coingecko.getCoins(false);
 
         /**
          * Make sure everything is present.
@@ -943,12 +943,12 @@ export class Trade {
         /**
          * Get a list of stablecoins in the top X by market cap from Coin Gecko.
          */
-        const stablecoins = await this.Coingecko.getStablecoins();
+        const stablecoins = await this.Coingecko.getStablecoins(false);
 
         /**
          * Get a list of coins in the top X by market cap from Coin Gecko.
          */
-        const coins = await this.Coingecko.getCoins();
+        const coins = await this.Coingecko.getCoins(false);
 
         /**
          * Make sure everything is present.
@@ -1034,12 +1034,12 @@ export class Trade {
         /**
          * Get a list of stablecoins in the top X by market cap from Coin Gecko.
          */
-        const stablecoins = await this.Coingecko.getStablecoins();
+        const stablecoins = await this.Coingecko.getStablecoins(true);
 
         /**
          * Get a list of coins in the top X by market cap from Coin Gecko.
          */
-        const coins = await this.Coingecko.getCoins();
+        const coins = await this.Coingecko.getCoins(true);
 
         /**
          * Make sure everything is present.

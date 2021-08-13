@@ -3,9 +3,35 @@ import { CONFIG } from "../config.js";
 import { ICoin } from "../interface/ICoin.js";
 
 export class CoinGecko {
-    constructor() {}
+    private _stablecoinCache: string[];
+    private _coinCache: string[];
 
-    public async getStablecoins(): Promise<string[] | undefined> {
+    constructor() {
+        this._stablecoinCache = undefined;
+        this._coinCache = undefined;
+    }
+
+    private get stablecoinCache() {
+        return this._stablecoinCache;
+    }
+
+    private set stablecoinCache(val: string[]) {
+        this._stablecoinCache = val;
+    }
+
+    private get coinCache() {
+        return this._coinCache;
+    }
+
+    private set coinCache(val: string[]) {
+        this._coinCache = val;
+    }
+
+    public async getStablecoins(cached: boolean): Promise<string[] | undefined> {
+        if (cached && this.stablecoinCache) {
+            return this.stablecoinCache;
+        }
+
         try {
             const result = [];
 
@@ -25,14 +51,24 @@ export class CoinGecko {
                 result.push(coin.symbol.toUpperCase());
             }
 
+            this.stablecoinCache = result;
+
             return result;
         }
         catch(err) {
             console.error(err);
+
+            if (cached && this.stablecoinCache) {
+                return this.stablecoinCache;
+            }
         }
     }
 
-    public async getCoins(): Promise<string[] | undefined> {
+    public async getCoins(cached: boolean): Promise<string[] | undefined> {
+        if (cached && this.coinCache) {
+            return this.coinCache;
+        }
+
         try {
             const result = [];
 
@@ -52,10 +88,16 @@ export class CoinGecko {
                 result.push(coin.symbol.toUpperCase());
             }
 
+            this.coinCache = result;
+
             return result;
         }
         catch(err) {
             console.error(err);
+
+            if (cached && this.coinCache) {
+                return this.coinCache;
+            }
         }
     }
 }
