@@ -160,7 +160,7 @@ export class Trade {
                         client_oid: `mcrbot_${tradeType}`
                     },
                     nonce: Date.now()
-                }), {timeout: 10000});
+                }), {timeout: 30000});
 
             return true;
         }
@@ -192,7 +192,7 @@ export class Trade {
                         client_oid: `mcrbot_${tradeType}`
                     },
                     nonce: Date.now()
-                }), {timeout: 10000});
+                }), {timeout: 30000});
 
             return true;
         }

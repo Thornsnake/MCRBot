@@ -6,7 +6,7 @@ export class Ticker {
 
     public async all(): Promise<ITicker[] | undefined> {
         try {
-            const response = await axios.get("https://api.crypto.com/v2/public/get-ticker", {timeout: 10000});
+            const response = await axios.get("https://api.crypto.com/v2/public/get-ticker", {timeout: 30000});
 
             return response.data.result.data;
         }
