@@ -4,7 +4,11 @@
 ## Requirements
 The bot is running on NodeJS and it is presumed you will want to run it with a process manager such as PM2, to automatically restart it in case of failure and keep it running when you detach from the terminal session. The following steps will make sure you have all prerequisits installed and the repository downloaded.
 ##### Install NodeJS
-Both the bot itself as well as the process manager will be run on NodeJS. The required minimum version is 14. If that is not the version in your apt-get repository, you can upgrade it by executing `curl -sL https://deb.nodesource.com/setup_14.x | sudo bash -`. After that, you can install NodeJS with `apt-get install nodejs`.
+Both the bot itself as well as the process manager will be run on NodeJS. The required minimum version is 14. If that is not the version in your apt-get repository, you can upgrade it by executing the following command:
+
+`curl -sL https://deb.nodesource.com/setup_14.x | sudo bash -`
+
+After that, you can install NodeJS with `apt-get install nodejs`.
 ##### Install NPM
 The Node Package Manager (NPM) is required to install package requirements for the bot and can be installed with `apt-get install npm`, if it has no been installed already.
 ##### Install PM2
