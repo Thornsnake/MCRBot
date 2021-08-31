@@ -58,7 +58,7 @@ export class CoinGecko {
         catch(err) {
             console.error(err);
 
-            if (cached && this.stablecoinCache) {
+            if (this.stablecoinCache) {
                 return this.stablecoinCache;
             }
         }
@@ -95,7 +95,7 @@ export class CoinGecko {
         catch(err) {
             console.error(err);
 
-            if (cached && this.coinCache) {
+            if (this.coinCache) {
                 return this.coinCache;
             }
         }
