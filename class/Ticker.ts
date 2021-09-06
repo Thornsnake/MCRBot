@@ -11,7 +11,7 @@ export class Ticker {
             return response.data.result.data;
         }
         catch(err) {
-            console.error(err);
+            console.error(`${err.name} - ${err.message}`);
         }
     }
 }

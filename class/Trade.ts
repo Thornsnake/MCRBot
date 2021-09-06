@@ -165,7 +165,7 @@ export class Trade {
             return true;
         }
         catch (err) {
-            console.error(err);
+            console.error(`${err.name} - ${err.message}`);
 
             return false;
         }
@@ -197,7 +197,7 @@ export class Trade {
             return true;
         }
         catch (err) {
-            console.error(err);
+            console.error(`${err.name} - ${err.message}`);
 
             return false;
         }
