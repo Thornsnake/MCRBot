@@ -369,6 +369,11 @@ export class Trade {
          * Get the available funds that are not invested.
          */
         balance = await this.Account.all();
+
+        if (!balance) {
+            return;
+        }
+
         const availableFunds = this.Calculation.getAvailableFunds(balance);
 
         /**
@@ -522,6 +527,11 @@ export class Trade {
          * Get the available funds that are not invested.
          */
         balance = await this.Account.all();
+
+        if (!balance) {
+            return;
+        }
+
         const availableFunds = this.Calculation.getAvailableFunds(balance);
 
         /**
@@ -696,6 +706,11 @@ export class Trade {
          * Get the available funds that are not invested.
          */
         balance = await this.Account.all();
+
+        if (!balance) {
+            return;
+        }
+
         const availableFunds = this.Calculation.getAvailableFunds(balance);
 
         /**
@@ -911,6 +926,10 @@ export class Trade {
         const balance = await this.Account.all();
         const tickers = await this.Ticker.all();
 
+        if (!balance || !tickers) {
+            return;
+        }
+
         const portfolio: IPortfolioSnapshot = {};
 
         for (const coin of tradableCoins) {
@@ -974,6 +993,10 @@ export class Trade {
          */
         const balance = await this.Account.all();
         const tickers = await this.Ticker.all();
+
+        if (!balance || !tickers) {
+            return;
+        }
 
         const portfolio: IPortfolioSnapshot = {};
 
@@ -1064,6 +1087,13 @@ export class Trade {
          * Get the ticker for all instruments on crypto.com.
          */
         const tickers = await this.Ticker.all();
+
+        /**
+         * Make sure everything is present.
+         */
+        if (!balance || !tickers) {
+            return;
+        }
 
         /**
          * Get the current portfolio worth.
