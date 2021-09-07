@@ -11,6 +11,7 @@ import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 import { Disk } from "./Disk.js";
 import { IPortfolioSnapshot } from "../interface/IPortfolioSnapshot.js";
 import { IPortfolioATH } from "../interface/IPortfolioATH.js";
+import { IAccount } from "../interface/IAccount.js";
 
 enum ETradeType {
     INVEST = "invest",
@@ -1143,7 +1144,14 @@ export class Trade {
                             continue;
                         }
 
-                        const quantity = this.Calculation.fixQuantity(instrument, coin.available);
+                        // If CRO is used to pay fees, we need to make sure to double-check the remaining amount before selling.
+                        let croBalance: IAccount = undefined;
+
+                        if (coin.currency.toUpperCase() === "CRO") {
+                            croBalance = await this.Account.get("CRO");
+                        }
+
+                        const quantity = this.Calculation.fixQuantity(instrument, croBalance ? croBalance.available : coin.available);
                         const minimumQuantity = this.minimumSellQuantity(instrument);
 
                         if (quantity < minimumQuantity) {
