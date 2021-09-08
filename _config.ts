@@ -61,7 +61,7 @@ export const CONFIG = {
      * Coins that should be included for investing and rebalancing, even if they fall out of the set
      * market cap limit.
      */
-    INCLUDE: ["USDC", "CRO"],
+    INCLUDE: ["CRO"],
 
     /**
      * Coins that should be excluded from investing and rebalancing, even if they are within the set
