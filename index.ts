@@ -227,11 +227,11 @@ class Bot {
          * Ready.
          */
         if (CONFIG.TRAILING_STOP.ACTIVE) {
-            console.log(`Trailing Stop at [${CONFIG.SCHEDULE.TRAILING_STOP}] with ${CONFIG.TRAILING_STOP.MIN_PROFIT.toFixed(2)}% min profit and ${CONFIG.TRAILING_STOP.MAX_DROP.toFixed(2)}% max drop ...`);
+            console.log(`Trailing Stop at [${CONFIG.SCHEDULE.TRAILING_STOP}] with ${CONFIG.TRAILING_STOP.MIN_PROFIT}% min profit and ${CONFIG.TRAILING_STOP.MAX_DROP}% max drop ...`);
         }
         
-        console.log(`Investing at [${CONFIG.SCHEDULE.INVESTING}] with ${CONFIG.INVESTMENT.toFixed(2)} ${CONFIG.QUOTE} ...`);
-        console.log(`Rebalancing at [${CONFIG.SCHEDULE.REBALANCE}] with threshold of ${CONFIG.THRESHOLD.toFixed(2)}% ...`);
+        console.log(`Investing at [${CONFIG.SCHEDULE.INVESTING}] with ${CONFIG.INVESTMENT} ${CONFIG.QUOTE} ...`);
+        console.log(`Rebalancing at [${CONFIG.SCHEDULE.REBALANCE}] with threshold of ${CONFIG.THRESHOLD}% ...`);
         console.log(``);
     }
 }

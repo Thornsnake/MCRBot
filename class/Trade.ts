@@ -358,7 +358,7 @@ export class Trade {
 
                         coinRemovalList.splice(index, 1);
 
-                        console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${(quantity * ticker.k).toFixed(2)} ${CONFIG.QUOTE}`);
+                        console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${(quantity * ticker.k)} ${CONFIG.QUOTE}`);
                     }
                 }
             }
@@ -430,7 +430,7 @@ export class Trade {
             if (bought) {
                 soldCoinWorth -= buyNotional;
 
-                console.log(`[BUY] ${coin} for ${buyNotional.toFixed(2)} ${CONFIG.QUOTE}`);
+                console.log(`[BUY] ${coin} for ${buyNotional} ${CONFIG.QUOTE}`);
             }
         }
     }
@@ -472,7 +472,7 @@ export class Trade {
 
         for (const coin of distributionDelta) {
             if (coin.percentage >= CONFIG.THRESHOLD) {
-                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation.toFixed(2)} ${CONFIG.QUOTE} (${coin.percentage.toFixed(2)}%) -> [OVERPERFORMING]`);
+                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation} ${CONFIG.QUOTE} (${coin.percentage}%) -> [OVERPERFORMING]`);
             }
         }
 
@@ -520,7 +520,7 @@ export class Trade {
                 soldCoinWorth += coin.deviation;
                 ignoreList.push(coin.name);
 
-                console.log(`[SELL] ${tradableCoin} for ${coin.deviation.toFixed(2)} ${CONFIG.QUOTE}`);
+                console.log(`[SELL] ${tradableCoin} for ${coin.deviation} ${CONFIG.QUOTE}`);
             }
         }
 
@@ -591,7 +591,7 @@ export class Trade {
             if (bought) {
                 soldCoinWorth -= buyNotional;
 
-                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional.toFixed(2)} ${CONFIG.QUOTE}`);
+                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional} ${CONFIG.QUOTE}`);
             }
         }
     }
@@ -635,7 +635,7 @@ export class Trade {
         for (const coin of distributionDelta) {
             if (coin.percentage <= 0 - CONFIG.THRESHOLD) {
                 ignoreList.push(coin.name);
-                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation.toFixed(2)} ${CONFIG.QUOTE} (${coin.percentage.toFixed(2)}%) -> [UNDERPERFORMING]`);
+                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation} ${CONFIG.QUOTE} (${coin.percentage}%) -> [UNDERPERFORMING]`);
             }
         }
 
@@ -699,7 +699,7 @@ export class Trade {
                 underperformerWorth -= quantity * ticker.k;
                 soldCoinWorth += quantity * ticker.k;
 
-                console.log(`[SELL] ${highestPerformer.name} for ${sellNotional.toFixed(2)} ${CONFIG.QUOTE}`);
+                console.log(`[SELL] ${highestPerformer.name} for ${sellNotional} ${CONFIG.QUOTE}`);
             }
         }
 
@@ -772,7 +772,7 @@ export class Trade {
             if (bought) {
                 soldCoinWorth -= buyNotional;
 
-                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional.toFixed(2)} ${CONFIG.QUOTE}`);
+                console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional} ${CONFIG.QUOTE}`);
             }
         }
     }
@@ -847,7 +847,7 @@ export class Trade {
             if (bought) {
                 availableFunds -= buyNotional;
 
-                console.log(`[BUY] ${tradableCoin} for ${buyNotional.toFixed(2)} ${CONFIG.QUOTE}`);
+                console.log(`[BUY] ${tradableCoin} for ${buyNotional} ${CONFIG.QUOTE}`);
             }
         }
 
@@ -1161,7 +1161,7 @@ export class Trade {
                         const sold = await this.sell(instrument, quantity, ETradeType.TRAILING_STOP);
 
                         if (sold) {
-                            console.log(`[SELL] ${coin.currency.toUpperCase()} for ${(quantity * ticker.k).toFixed(2)} ${CONFIG.QUOTE}`);
+                            console.log(`[SELL] ${coin.currency.toUpperCase()} for ${(quantity * ticker.k)} ${CONFIG.QUOTE}`);
                         }
                     }
 
