@@ -58,6 +58,10 @@ export class Calculation {
                 const tradableCoin = tradableCoins.find((row) => {
                     return row === coinRemoval.coin;
                 });
+
+                if (tradableCoin === CONFIG.QUOTE.toUpperCase()) {
+                    continue;
+                }
     
                 if (!tradableCoin) {
                     tradableCoins.push(coinRemoval.coin);

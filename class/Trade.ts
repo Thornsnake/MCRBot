@@ -934,15 +934,9 @@ export class Trade {
         const portfolio: IPortfolioSnapshot = {};
 
         for (const coin of tradableCoins) {
-            try {
-                portfolio[coin] = {
-                    quantity: balance.find((row) => row.currency.toUpperCase() === coin).available,
-                    price: tickers.find((row) => row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase()).k
-                }
-            }
-            catch (err) {
-                console.log(`Can't find ticker for base currency ${coin} and quote currency ${CONFIG.QUOTE.toUpperCase()}`);
-                console.log(tickers);
+            portfolio[coin] = {
+                quantity: balance.find((row) => row.currency.toUpperCase() === coin).available,
+                price: tickers.find((row) => row.i.toUpperCase().split("_")[0] === coin && row.i.toUpperCase().split("_")[1] === CONFIG.QUOTE.toUpperCase()).k
             }
         }
 
