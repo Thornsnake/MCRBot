@@ -25,7 +25,7 @@ We now need to download and compile the source code and install the package requ
 ##### Clone MCRBot
 Navigate to the folder you want MCRBot to be located in. Then run `git clone https://github.com/Thornsnake/MCRBot.git` to clone the repository.
 ##### Compile the Bot
-Navigate into the bot folder and run `sh install.sh` to download all package requirements and compile the source code.
+Navigate into the bot folder and run `sh install.sh` to download all package requirements and compile the source code. You will be asked to give this bot a unique name, so the process manager can tell them apart, in case you want to run more than one.
 
 ## Configuration
 To configure the bot, open the `config.ts` file with your favorite file editor and you should see the following list of configuration options.
