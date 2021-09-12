@@ -472,7 +472,7 @@ export class Trade {
 
         for (const coin of distributionDelta) {
             if (coin.percentage >= CONFIG.THRESHOLD) {
-                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation} ${CONFIG.QUOTE} (${coin.percentage}%) -> [OVERPERFORMING]`);
+                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation} ${CONFIG.QUOTE} (${coin.percentage.toFixed(2)}%) -> [OVERPERFORMING]`);
             }
         }
 
@@ -635,7 +635,7 @@ export class Trade {
         for (const coin of distributionDelta) {
             if (coin.percentage <= 0 - CONFIG.THRESHOLD) {
                 ignoreList.push(coin.name);
-                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation} ${CONFIG.QUOTE} (${coin.percentage}%) -> [UNDERPERFORMING]`);
+                console.log(`[CHECK] ${coin.name} deviates ${coin.deviation} ${CONFIG.QUOTE} (${coin.percentage.toFixed(2)}%) -> [UNDERPERFORMING]`);
             }
         }
 
