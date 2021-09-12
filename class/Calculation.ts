@@ -55,14 +55,14 @@ export class Calculation {
 
         if (coinRemovalList) {
             for (const coinRemoval of coinRemovalList) {
+                if (coinRemoval.coin === CONFIG.QUOTE.toUpperCase()) {
+                    continue;
+                }
+
                 const tradableCoin = tradableCoins.find((row) => {
                     return row === coinRemoval.coin;
                 });
 
-                if (tradableCoin === CONFIG.QUOTE.toUpperCase()) {
-                    continue;
-                }
-    
                 if (!tradableCoin) {
                     tradableCoins.push(coinRemoval.coin);
                 }
