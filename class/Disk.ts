@@ -51,4 +51,15 @@ export class Disk {
             );
         });
     }
+
+    public async remove(path: string): Promise<boolean> {
+        return new Promise<boolean>((resolve) => {
+            fs.rm(
+                path,
+                ((err) => {
+                    err ? resolve(false) : resolve(true);
+                })
+            );
+        });
+    }
 }
