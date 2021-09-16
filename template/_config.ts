@@ -20,8 +20,8 @@ export const CONFIG = {
 
     /**
      * The quote currency of your exchange pairs. Can be "USDT", "USDC", "BTC" or "CRO". Please
-     * consider that if you set the quote currency to "BTC" or "CRO", the INVESTMENT option must also
-     * be set in that currency.
+     * take in mind that if you set the quote currency to "BTC" or "CRO", the INVESTMENT option
+     * must also be set in that currency.
      * 
      * 25 USDT/USDC at time of writing this would be about 0.0008 BTC or 230 CRO.
      */
