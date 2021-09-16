@@ -9,13 +9,13 @@ export const CONFIG = {
      * Schedules in cron format.
      * Check https://crontab.guru/ if you want to double check your schedule.
      * 
-     * By default, the trailing stop check happens ever 1 minute. Investing happens 5 minutes
-     * after midnight every day. Rebalancing happens every 15 minutes.
+     * By default, the trailing stop check happens ever 1 minute. Investing happens 3 minutes
+     * after midnight every day. Rebalancing happens every 5 minutes.
      */
     SCHEDULE: {
         TRAILING_STOP: "30 * * * * *",
-        INVESTING: "0 5 0 * * *",
-        REBALANCE: "0 0,15,30,45 */1 * * *"
+        INVESTING: "0 3 0 * * *",
+        REBALANCE: "0 */5 * * * *"
     },
 
     /**
