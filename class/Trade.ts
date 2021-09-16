@@ -262,7 +262,7 @@ export class Trade {
                 if (!coinRemoval) {
                     coinRemovalList.push({
                         coin: coinBalance.currency.toUpperCase(),
-                        execute: Date.now() + 86400000
+                        execute: Date.now() + (3600000 * CONFIG.REMOVAL)
                     });
                 }
                 else if (coinRemoval.execute < Date.now()) {
