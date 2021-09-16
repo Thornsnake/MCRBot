@@ -96,6 +96,21 @@ class Bot {
         }
 
         /**
+         * Make sure the coin removal time is not missing and set a default value if it is.
+         */
+         if (CONFIG.REMOVAL === undefined) {
+            CONFIG.REMOVAL = 24;
+        }
+
+        /**
+         * Make sure the coin removal time is not negative.
+         */
+         if (CONFIG.REMOVAL < 0) {
+            console.log("The REMOVAL option must be 0 or greater!");
+            return false;
+        }
+
+        /**
          * Make sure the rebalancing threshold is at least 1%.
          */
         if (CONFIG.THRESHOLD < 1) {
