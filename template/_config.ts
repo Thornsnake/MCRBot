@@ -59,7 +59,7 @@ export const CONFIG = {
 
     /**
      * The amount of hours the bot should wait before selling a coin that has fallen out of the top x
-     * coins by market cap. The sold coin will be rebalance over all coins that are still within the
+     * coins by market cap. The sold coin will be rebalanced over all coins that are still within the
      * market cap.
      */
     REMOVAL: 24,

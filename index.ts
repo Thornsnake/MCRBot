@@ -56,7 +56,7 @@ class Bot {
         /**
          * Make sure the cron expressions for the schedules are valid.
          */
-         if (!cronValidator.isValidCron(CONFIG.SCHEDULE.TRAILING_STOP, { alias: true, allowBlankDay: true, allowSevenAsSunday: true, seconds: true })) {
+        if (!cronValidator.isValidCron(CONFIG.SCHEDULE.TRAILING_STOP, { alias: true, allowBlankDay: true, allowSevenAsSunday: true, seconds: true })) {
             console.log("The SCHEDULE -> TRAILING_STOP option is invalid. Please make sure you enter a valid cron expression!")
             return false;
         }
@@ -98,14 +98,14 @@ class Bot {
         /**
          * Make sure the coin removal time is not missing and set a default value if it is.
          */
-         if (CONFIG["REMOVAL"] === undefined) {
+        if (CONFIG["REMOVAL"] === undefined) {
             CONFIG["REMOVAL"] = 24;
         }
 
         /**
          * Make sure the coin removal time is not negative.
          */
-         if (CONFIG["REMOVAL"] < 0) {
+        if (CONFIG["REMOVAL"] < 0) {
             console.log("The REMOVAL option must be 0 or greater!");
             return false;
         }
@@ -244,7 +244,7 @@ class Bot {
         if (CONFIG.TRAILING_STOP.ACTIVE) {
             console.log(`Trailing Stop at [${CONFIG.SCHEDULE.TRAILING_STOP}] with ${CONFIG.TRAILING_STOP.MIN_PROFIT}% min profit and ${CONFIG.TRAILING_STOP.MAX_DROP}% max drop ...`);
         }
-        
+
         console.log(`Investing at [${CONFIG.SCHEDULE.INVESTING}] with ${CONFIG.INVESTMENT} ${CONFIG.QUOTE} ...`);
         console.log(`Rebalancing at [${CONFIG.SCHEDULE.REBALANCE}] with threshold of ${CONFIG.THRESHOLD}% ...`);
         console.log(``);
