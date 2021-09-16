@@ -9,19 +9,19 @@ export const CONFIG = {
      * Schedules in cron format.
      * Check https://crontab.guru/ if you want to double check your schedule.
      * 
-     * By default, the trailing stop check happens ever 1 minute. Investing happens 5 minutes
-     * after midnight every day. Rebalancing happens every 15 minutes.
+     * By default, the trailing stop check happens ever 1 minute. Investing happens 3 minutes
+     * after midnight every day. Rebalancing happens every 5 minutes.
      */
     SCHEDULE: {
         TRAILING_STOP: "30 * * * * *",
-        INVESTING: "0 5 0 * * *",
-        REBALANCE: "0 0,15,30,45 */1 * * *"
+        INVESTING: "0 3 0 * * *",
+        REBALANCE: "0 */5 * * * *"
     },
 
     /**
      * The quote currency of your exchange pairs. Can be "USDT", "USDC", "BTC" or "CRO". Please
-     * consider that if you set the quote currency to "BTC" or "CRO", the INVESTMENT option must also
-     * be set in that currency.
+     * take in mind that if you set the quote currency to "BTC" or "CRO", the INVESTMENT option
+     * must also be set in that currency.
      * 
      * 25 USDT/USDC at time of writing this would be about 0.0008 BTC or 230 CRO.
      */
