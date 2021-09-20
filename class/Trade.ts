@@ -793,6 +793,8 @@ export class Trade {
         /**
          * Invest into coins.
          */
+        let totalInvestment = 0;
+
         for (const tradableCoin of tradableCoins) {
             const instrument = instruments.find((row) => {
                 return row.base_currency.toUpperCase() === tradableCoin && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
@@ -827,6 +829,7 @@ export class Trade {
 
             if (bought) {
                 availableFunds -= buyNotional;
+                totalInvestment += buyNotional;
 
                 console.log(`[BUY] ${tradableCoin} for ${buyNotional} ${CONFIG.QUOTE}`);
             }
@@ -836,7 +839,55 @@ export class Trade {
          * Add the investment to the trailing stop statistics.
          */
         const portfolioATH = await this.getPortfolioATH();
-        const investment = portfolioATH.investment + CONFIG.INVESTMENT;
+        let investment = portfolioATH.investment + totalInvestment;
+
+        if (portfolioATH.investment === 0) {
+            /**
+             * Get all instruments that are available on crypto.com.
+             */
+            const instruments = await this.Instrument.all();
+
+            /**
+             * Get a list of stablecoins in the top X by market cap from Coin Gecko.
+             */
+            const stablecoins = await this.Coingecko.getStablecoins(true);
+
+            /**
+             * Get a list of coins in the top X by market cap from Coin Gecko.
+             */
+            const coins = await this.Coingecko.getCoins(true);
+
+            /**
+             * Make sure everything is present.
+             */
+            if (!instruments || !stablecoins || !coins) {
+                return;
+            }
+
+            /**
+             * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
+             * not stablecoins.
+             */
+            const coinRemovalList = await this.getCoinRemovalList();
+            const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
+
+            /**
+             * Make sure everything is present.
+             */
+            if (!balance || !tickers) {
+                return;
+            }
+
+            /**
+             * Get the current portfolio worth.
+             */
+            const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, tickers);
+
+            /**
+             * Add the portfolio worth to the initial investment amount.
+             */
+            investment = portfolioWorth;
+        }
 
         await this.setPortfolioATH({
             ...portfolioATH,
