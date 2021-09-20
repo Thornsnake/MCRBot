@@ -142,7 +142,7 @@ export class Trade {
                         client_oid: `mcrbot_${tradeType}`
                     },
                     nonce: Date.now()
-                }), {timeout: 30000});
+                }), { timeout: 30000 });
 
             return true;
         }
@@ -174,7 +174,7 @@ export class Trade {
                         client_oid: `mcrbot_${tradeType}`
                     },
                     nonce: Date.now()
-                }), {timeout: 30000});
+                }), { timeout: 30000 });
 
             return true;
         }
@@ -762,7 +762,7 @@ export class Trade {
         /**
          * Get the current account balance of the user for all coins.
          */
-        const balance = await this.Account.all();
+        let balance = await this.Account.all();
 
         /**
          * Get the ticker for all instruments on crypto.com.
@@ -843,33 +843,9 @@ export class Trade {
 
         if (portfolioATH.investment === 0) {
             /**
-             * Get all instruments that are available on crypto.com.
+             * Get the current account balance of the user for all coins.
              */
-            const instruments = await this.Instrument.all();
-
-            /**
-             * Get a list of stablecoins in the top X by market cap from Coin Gecko.
-             */
-            const stablecoins = await this.Coingecko.getStablecoins(true);
-
-            /**
-             * Get a list of coins in the top X by market cap from Coin Gecko.
-             */
-            const coins = await this.Coingecko.getCoins(true);
-
-            /**
-             * Make sure everything is present.
-             */
-            if (!instruments || !stablecoins || !coins) {
-                return;
-            }
-
-            /**
-             * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
-             * not stablecoins.
-             */
-            const coinRemovalList = await this.getCoinRemovalList();
-            const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
+            balance = await this.Account.all();
 
             /**
              * Make sure everything is present.
