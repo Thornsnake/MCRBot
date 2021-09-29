@@ -155,6 +155,16 @@ export const CONFIG = {
     },
 
     /**
+     * Log an idle message if the bot had nothing to rebalance during the current schedule. This is
+     * a good indicator if you want to make sure that the bot is actually working as opposed to
+     * just having nothing logged during the schedule.
+     * 
+     * If you want to deactivate the idle message, give it an empty value.
+     * IDLE_MESSAGE: ""
+     */
+    IDLE_MESSAGE: "[CHECK] Rebalance not necessary",
+
+    /**
      * Will only do a dry run and output trade logs as if the trades took place. The trades will not be
      * executed.
      * 

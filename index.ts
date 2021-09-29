@@ -183,6 +183,13 @@ class Bot {
             return false;
         }
 
+        /**
+         * Make sure the idle message is not missing and set a default value if it is.
+         */
+         if (CONFIG["IDLE_MESSAGE"] === undefined) {
+            CONFIG["IDLE_MESSAGE"] = "[CHECK] Rebalance not necessary";
+        }
+
         return true;
     }
 
