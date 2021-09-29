@@ -948,8 +948,8 @@ export class Trade {
          * Write that the bot had nothing to do if that is the case.
          */
         if (!marketCapRebalanced && !overperformersRebalanced && !underperformersRebalanced) {
-            if (CONFIG.IDLE_MESSAGE) {
-                console.log(CONFIG.IDLE_MESSAGE);
+            if (CONFIG["IDLE_MESSAGE"]) {
+                console.log(CONFIG["IDLE_MESSAGE"]);
             }
         }
     }
