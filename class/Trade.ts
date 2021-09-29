@@ -186,6 +186,8 @@ export class Trade {
     }
 
     private async rebalanceMarketCaps(instruments: IInstrument[], tradableCoins: string[]) {
+        let hadWorkToDo = false;
+
         /**
          * Get the current account balance of the user for all coins.
          */
@@ -327,6 +329,7 @@ export class Trade {
 
                 if ((coinRemoval && coinRemoval.execute < Date.now()) || excluded) {
                     console.log(`[CHECK] ${coinBalance.currency.toUpperCase()} should not be in the portfolio`);
+                    hadWorkToDo = true;
 
                     const sold = await this.sell(instrument, quantity, ETradeType.REBALANCE);
 
@@ -414,9 +417,13 @@ export class Trade {
                 console.log(`[BUY] ${coin} for ${buyNotional} ${CONFIG.QUOTE}`);
             }
         }
+
+        return hadWorkToDo;
     }
 
     private async rebalanceOverperformers(instruments: IInstrument[], tradableCoins: string[]) {
+        let hadWorkToDo = false;
+
         /**
          * Get the current account balance of the user for all coins.
          */
@@ -454,6 +461,7 @@ export class Trade {
         for (const coin of distributionDelta) {
             if (coin.percentage >= CONFIG.THRESHOLD) {
                 console.log(`[CHECK] ${coin.name} deviates ${coin.deviation} ${CONFIG.QUOTE} (${coin.percentage.toFixed(2)}%) -> [OVERPERFORMING]`);
+                hadWorkToDo = true;
             }
         }
 
@@ -575,9 +583,13 @@ export class Trade {
                 console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional} ${CONFIG.QUOTE}`);
             }
         }
+
+        return hadWorkToDo;
     }
 
     private async rebalanceUnderperformers(instruments: IInstrument[], tradableCoins: string[]) {
+        let hadWorkToDo = false;
+
         /**
          * Get the current account balance of the user for all coins.
          */
@@ -617,6 +629,7 @@ export class Trade {
             if (coin.percentage <= 0 - CONFIG.THRESHOLD) {
                 ignoreList.push(coin.name);
                 console.log(`[CHECK] ${coin.name} deviates ${coin.deviation} ${CONFIG.QUOTE} (${coin.percentage.toFixed(2)}%) -> [UNDERPERFORMING]`);
+                hadWorkToDo = true;
             }
         }
 
@@ -756,6 +769,8 @@ export class Trade {
                 console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional} ${CONFIG.QUOTE}`);
             }
         }
+
+        return hadWorkToDo;
     }
 
     private async investMoney(instruments: IInstrument[], tradableCoins: string[]) {
@@ -914,7 +929,7 @@ export class Trade {
         /**
          * Rebalance
          */
-        await this.rebalanceMarketCaps(instruments, tradableCoinsWithoutRemovalList);
+        const marketCapRebalanced = await this.rebalanceMarketCaps(instruments, tradableCoinsWithoutRemovalList);
 
         /**
          * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
@@ -926,8 +941,15 @@ export class Trade {
         /**
          * Rebalance
          */
-        await this.rebalanceOverperformers(instruments, tradableCoins);
-        await this.rebalanceUnderperformers(instruments, tradableCoins);
+        const overperformersRebalanced = await this.rebalanceOverperformers(instruments, tradableCoins);
+        const underperformersRebalanced = await this.rebalanceUnderperformers(instruments, tradableCoins);
+
+        /**
+         * Write that the bot had nothing to do if that is the case.
+         */
+        if (!marketCapRebalanced && !overperformersRebalanced && !underperformersRebalanced) {
+            console.log(`[CHECK] Rebalance not necessary`);
+        }
     }
 
     public async invest() {
@@ -995,7 +1017,7 @@ export class Trade {
                 return;
             }
             else {
-                console.log("Trading now resumed after trailing stop hit.");
+                console.log("Trading now resumed after trailing stop hit");
                 portfolioATH.active = false;
                 portfolioATH.allTimeHigh = 0;
                 portfolioATH.investment = 0;
@@ -1091,7 +1113,7 @@ export class Trade {
                     /**
                      * Sell all coins in the portfolio to the quote currency.
                      */
-                    console.log("Trailing stop hit, selling portfolio.");
+                    console.log("Trailing stop hit, selling portfolio");
 
                     for (const coin of balance) {
                         const instrument = instruments.find((row) => {
@@ -1131,7 +1153,7 @@ export class Trade {
                         }
                     }
 
-                    console.log(`Portfolio sold, trading will resume in ${CONFIG.TRAILING_STOP.RESUME} hours.`);
+                    console.log(`Portfolio sold, trading will resume in ${CONFIG.TRAILING_STOP.RESUME} hours`);
                 }
             }
         }
