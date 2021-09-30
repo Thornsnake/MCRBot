@@ -1,4 +1,4 @@
-import cronJob, { ScheduledTask } from "node-cron";
+import cron from "cron";
 import { Trade } from "./class/Trade.js";
 import { CONFIG } from "./config.js";
 import cronValidator from "cron-validator";
@@ -6,9 +6,9 @@ import Queue from "better-queue";
 
 class Bot {
     private _trade: Trade;
-    private _trailingStopSchedule: ScheduledTask;
-    private _investingSchedule: ScheduledTask;
-    private _rebalancingSchedule: ScheduledTask;
+    private _trailingStopSchedule: cron.CronJob;
+    private _investingSchedule: cron.CronJob;
+    private _rebalancingSchedule: cron.CronJob;
     private _queue: Queue;
 
     constructor() {
@@ -227,23 +227,30 @@ class Bot {
         /**
          * Initiates the trailing stop schedule.
          */
-        this._trailingStopSchedule = cronJob.schedule(CONFIG.SCHEDULE.TRAILING_STOP, async () => {
+        this._trailingStopSchedule = new cron.CronJob(CONFIG.SCHEDULE.TRAILING_STOP, async () => {
             this._queue.push("TRAILING_STOP");
         });
 
         /**
          * Initiates the investing schedule.
          */
-        this._investingSchedule = cronJob.schedule(CONFIG.SCHEDULE.INVESTING, async () => {
+        this._investingSchedule = new cron.CronJob(CONFIG.SCHEDULE.INVESTING, async () => {
             this._queue.push("INVEST");
         });
 
         /**
          * Initiates the rebalancing schedule.
          */
-        this._rebalancingSchedule = cronJob.schedule(CONFIG.SCHEDULE.REBALANCE, async () => {
+        this._rebalancingSchedule = new cron.CronJob(CONFIG.SCHEDULE.REBALANCE, async () => {
             this._queue.push("REBALANCE");
         });
+
+        /**
+         * Starts all cron jobs.
+         */
+         this._trailingStopSchedule.start();
+         this._investingSchedule.start();
+         this._rebalancingSchedule.start();
 
         /**
          * Ready.
