@@ -186,5 +186,3 @@ export const CONFIG = {
      */
     DRY: false
 };
-
-// Just a test

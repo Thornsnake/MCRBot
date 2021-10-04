@@ -76,6 +76,7 @@ class Bot {
     }
 
     async check() {
+        const test = 0;
         /**
          * Make sure the credentials are valid an we can talk to the API.
          */
