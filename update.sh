@@ -7,6 +7,9 @@ cd "$basedir";
 # Reset the git cache
 git reset --hard
 
+# Fetch new code
+git fetch
+
 # Get the Head and Upstream hashes
 HEADHASH=$(git rev-parse HEAD)
 UPSTREAM=$(git rev-parse master@{upstream})
