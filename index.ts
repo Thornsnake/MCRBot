@@ -3,30 +3,44 @@ import { Trade } from "./class/Trade.js";
 import { CONFIG } from "./config.js";
 import cronValidator from "cron-validator";
 import Queue from "better-queue";
+import { spawn } from "child_process";
 
 class Bot {
     private _trade: Trade;
+
     private _trailingStopSchedule: cron.CronJob;
     private _investingSchedule: cron.CronJob;
     private _rebalancingSchedule: cron.CronJob;
+    private _autoUpdateSchedule: cron.CronJob;
+
     private _queue: Queue;
+
+    private _trailingStopRunning: boolean;
+    private _investingRunning: boolean;
+    private _rebalancingRunning: boolean;
+    private _autoUpdateRunning: boolean;
 
     constructor() {
         this._trade = new Trade();
+
         this._trailingStopSchedule = null;
         this._investingSchedule = null;
         this._rebalancingSchedule = null;
+        this._autoUpdateSchedule = null;
 
         this._queue = new Queue(async (job: string, callback: (arg0: any, arg1: any) => void) => {
             try {
                 switch (job) {
                     case "TRAILING_STOP":
+                        this._trailingStopRunning = true;
                         await this._trade.stop();
                         break;
                     case "INVEST":
+                        this._investingRunning = true;
                         await this._trade.invest();
                         break;
                     case "REBALANCE":
+                        this._rebalancingRunning = true;
                         await this._trade.rebalance();
                         break;
                     default:
@@ -37,9 +51,28 @@ class Bot {
                 console.error(err);
             }
             finally {
+                switch (job) {
+                    case "TRAILING_STOP":
+                        this._trailingStopRunning = false;
+                        break;
+                    case "INVEST":
+                        this._investingRunning = false;
+                        break;
+                    case "REBALANCE":
+                        this._rebalancingRunning = false;
+                        break;
+                    default:
+                        break;
+                }
+
                 callback(null, null);
             }
         });
+
+        this._trailingStopRunning = false;
+        this._investingRunning = false;
+        this._rebalancingRunning = false;
+        this._autoUpdateRunning = false;
     }
 
     async check() {
@@ -186,8 +219,15 @@ class Bot {
         /**
          * Make sure the idle message is not missing and set a default value if it is.
          */
-         if (CONFIG["IDLE_MESSAGE"] === undefined) {
+        if (CONFIG["IDLE_MESSAGE"] === undefined) {
             CONFIG["IDLE_MESSAGE"] = "[CHECK] Rebalance not necessary";
+        }
+
+        /**
+         * Make sure the auto update is not missing and set a default value if it is.
+         */
+        if (CONFIG["AUTO_UPDATE"] === undefined) {
+            CONFIG["AUTO_UPDATE"] = false;
         }
 
         return true;
@@ -221,6 +261,10 @@ class Bot {
                 if (this._rebalancingSchedule) {
                     this._rebalancingSchedule.stop();
                 }
+
+                if (this._autoUpdateSchedule) {
+                    this._autoUpdateSchedule.stop();
+                }
             });
         }
 
@@ -228,6 +272,10 @@ class Bot {
          * Initiates the trailing stop schedule.
          */
         this._trailingStopSchedule = new cron.CronJob(CONFIG.SCHEDULE.TRAILING_STOP, async () => {
+            if (this._autoUpdateRunning) {
+                return;
+            }
+
             this._queue.push("TRAILING_STOP");
         });
 
@@ -235,6 +283,10 @@ class Bot {
          * Initiates the investing schedule.
          */
         this._investingSchedule = new cron.CronJob(CONFIG.SCHEDULE.INVESTING, async () => {
+            if (this._autoUpdateRunning) {
+                return;
+            }
+
             this._queue.push("INVEST");
         });
 
@@ -242,15 +294,66 @@ class Bot {
          * Initiates the rebalancing schedule.
          */
         this._rebalancingSchedule = new cron.CronJob(CONFIG.SCHEDULE.REBALANCE, async () => {
+            if (this._autoUpdateRunning) {
+                return;
+            }
+
             this._queue.push("REBALANCE");
         });
+
+        if (CONFIG["AUTO_UPDATE"]) {
+            /**
+             * Initiates the auto update schedule.
+             * 
+             * If you are reading this code, you should not mess with this cron schedule unless you
+             * know what you are doing.
+             */
+            this._autoUpdateSchedule = new cron.CronJob("40 0 0 * * *", async () => {
+                /**
+                 * Wait for the process queue to be empty before starting the update process, so we do
+                 * not abort any running schedules. We will wait for a total of 10 minutes. If the
+                 * queue is still not empty at that time, the update will be aborted.
+                 */
+                this._autoUpdateRunning = true;
+
+                for (let i = 0; i < 600; i++) {
+                    if (this._trailingStopRunning || this._investingRunning || this._rebalancingRunning) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                    else {
+                        /**
+                         * Start the update child process and detach it from the parent.
+                         */
+                        try {
+                            const subprocess = spawn("sh", ["update.sh"], {
+                                detached: true,
+                                stdio: "ignore"
+                            });
+
+                            subprocess.unref();
+                        }
+                        catch (err) {
+                            console.error(err);
+                        }
+
+                        break;
+                    }
+                }
+
+                this._autoUpdateRunning = false;
+            });
+        }
 
         /**
          * Starts all cron jobs.
          */
-         this._trailingStopSchedule.start();
-         this._investingSchedule.start();
-         this._rebalancingSchedule.start();
+        this._trailingStopSchedule.start();
+        this._investingSchedule.start();
+        this._rebalancingSchedule.start();
+
+        if (CONFIG["AUTO_UPDATE"]) {
+            this._autoUpdateSchedule.start();
+        }
 
         /**
          * Ready.

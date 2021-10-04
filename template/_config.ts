@@ -165,6 +165,19 @@ export const CONFIG = {
     IDLE_MESSAGE: "[CHECK] Rebalance not necessary",
 
     /**
+     * Automatically check for updates every 24 hours. When an update is found, the bot will look
+     * for a free time window (between your schedules) to do the update and restart itself.
+     * 
+     * This option is 'false' by default, because (especially when money is involved) you should
+     * usually check the new code on Github, before you update your running bot to the new version.
+     * This is to prevent malicious code from being run on your system through a new update.
+     * 
+     * If you still decide that you want your bot to do updates automatically, then set this option
+     * to 'true'.
+     */
+    AUTO_UPDATE: false,
+
+    /**
      * Will only do a dry run and output trade logs as if the trades took place. The trades will not be
      * executed.
      * 

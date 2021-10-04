@@ -7,11 +7,21 @@ cd "$basedir";
 # Reset the git cache
 git reset --hard
 
-# Pull the current repository
-git pull origin master
+# Get the Head and Upstream hashes
+HEADHASH=$(git rev-parse HEAD)
+UPSTREAM=$(git rev-parse master@{upstream})
 
-# Execute the install script
-sh install.sh
+# Check if there are any updates to the current code
+if [ "$HEADHASH" != "$UPSTREAM" ]
+then
+    # Pull the current repository
+    git pull origin master;
 
-# Execute the restart script
-sh restart.sh
+    # Execute the install script
+    sh install.sh;
+
+    # Execute the restart script
+    sh restart.sh;
+else
+    echo "[SKIP] Your version is up to date!";
+fi

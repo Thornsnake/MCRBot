@@ -50,6 +50,7 @@ To configure the bot, open the `config.ts` file with your favorite file editor a
 | TRAILING_STOP > MAX_DROP   | number   | The maximum amount of value the portfolio is allowed to lose from its all time high before the trailing stop triggers and your portfolio is sold.
 | TRAILING_STOP > RESUME     | number   | The amount of hours to wait before resuming to DCA and rebalance after the trailing stop has been triggered.
 | IDLE_MESSAGE               | string   | A message that will be shown when the bot had nothing to rebalance, as opposed to just logging nothing.
+| AUTO_UPDATE                | boolean  | Automatically check for updates every 24 hours and (if one was found) install them. Will restart the bot automatically after the update.
 | DRY                        | boolean  | Dry run. Don't execute the orders on the exchange. This is a debug feature.
 
 If you need more detailed explanations what each option does, read the comments in the configuration file. They should explain things well enough. When you are done, save the file.

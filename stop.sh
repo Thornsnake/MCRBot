@@ -20,5 +20,5 @@ then
     # Stop the bot
     pm2 stop "$name";
 
-    echo >&2 "[OK] "$name" stopped!";
+    echo "[OK] "$name" stopped!";
 fi

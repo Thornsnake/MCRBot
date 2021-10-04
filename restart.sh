@@ -25,5 +25,5 @@ else
     # Restart the bot
     pm2 restart "$name";
 
-    echo >&2 "[OK] $name restarted!";
+    echo "[OK] $name restarted!";
 fi

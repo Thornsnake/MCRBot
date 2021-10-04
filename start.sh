@@ -25,5 +25,5 @@ else
     # Start the bot
     pm2 start index.js --name "$name" --time;
 
-    echo >&2 "[OK] "$name" started!";
+    echo "[OK] "$name" started!";
 fi
