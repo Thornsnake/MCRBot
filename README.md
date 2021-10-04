@@ -64,3 +64,5 @@ If you would like to check the log files, you can usually find them under `/root
 
 ## Updating the Bot
 To update the bot to the newest version, execute `sh update.sh`. This will also automatically restart your bot after the update. Your current configuration will remain the same.
+
+You can also activate the `AUTO_UPDATE` option in the config file for automatic updates from Github every 24 hours.
