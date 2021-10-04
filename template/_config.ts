@@ -169,7 +169,7 @@ export const CONFIG = {
      * for a free time window (between your schedules) to do the update and restart itself.
      * 
      * This option is 'false' by default, because (especially when money is involved) you should
-     * usually check the new code on Github, before you update your running bot to the new version.
+     * really check the new code on Github, before you update your running bot to the new version.
      * This is to prevent malicious code from being run on your system through a new update.
      * 
      * If you still decide that you want your bot to do updates automatically, then set this option
