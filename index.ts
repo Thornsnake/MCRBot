@@ -316,6 +316,8 @@ class Bot {
                  */
                 this._autoUpdateRunning = true;
 
+                console.log(`[UPDATE] Waiting for schedules to finish`);
+
                 for (let i = 0; i < 600; i++) {
                     if (this._trailingStopRunning || this._investingRunning || this._rebalancingRunning) {
                         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -325,6 +327,8 @@ class Bot {
                          * Start the update child process and detach it from the parent.
                          */
                         try {
+                            console.log(`[UPDATE] Checking for new updates`);
+
                             const subprocess = spawn("sh", ["update.sh"], {
                                 detached: true,
                                 stdio: "ignore"
