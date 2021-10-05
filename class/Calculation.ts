@@ -232,6 +232,10 @@ export class Calculation {
         return minPriceNotional > minQuantityNotional ? minPriceNotional : minQuantityNotional;
     }
 
+    public minimumSellQuantity(instrument: IInstrument) {
+        return (1 / Math.pow(10, instrument.quantity_decimals));
+    }
+
     public getCoinInvestmentTarget(tradableCoins: string[], coin: string): number {
         const reservedWeight = Object.entries(CONFIG.WEIGHT).reduce((acc: number, cur: [string, number]) => {
             if (tradableCoins.includes(cur[0])) {

@@ -117,10 +117,6 @@ export class Trade {
         await this.Disk.save("./data/PortfolioATH.json", JSON.stringify(portfolioATH));
     }
 
-    private minimumSellQuantity(instrument: IInstrument) {
-        return (1 / Math.pow(10, instrument.quantity_decimals));
-    }
-
     private async buy(instrument: IInstrument, notional: number, tradeType: ETradeType): Promise<boolean> {
         await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -242,7 +238,7 @@ export class Trade {
             }
 
             const quantity = this.Calculation.fixQuantity(instrument, coinBalance.available);
-            const minimumQuantity = this.minimumSellQuantity(instrument);
+            const minimumQuantity = this.Calculation.minimumSellQuantity(instrument);
 
             if (quantity < minimumQuantity) {
                 continue;
@@ -312,7 +308,7 @@ export class Trade {
             }
 
             const quantity = this.Calculation.fixQuantity(instrument, coinBalance.available);
-            const minimumQuantity = this.minimumSellQuantity(instrument);
+            const minimumQuantity = this.Calculation.minimumSellQuantity(instrument);
 
             if (quantity < minimumQuantity) {
                 continue;
@@ -497,7 +493,7 @@ export class Trade {
             }
 
             const quantity = this.Calculation.fixQuantity(instrument, coin.deviation / ticker.b);
-            const minimumQuantity = this.minimumSellQuantity(instrument);
+            const minimumQuantity = this.Calculation.minimumSellQuantity(instrument);
 
             if (quantity < minimumQuantity) {
                 continue;
@@ -677,7 +673,7 @@ export class Trade {
 
             const sellNotional = Math.abs(highestPerformer.deviation);
             const quantity = this.Calculation.fixQuantity(instrument, sellNotional / ticker.k);
-            const minimumQuantity = this.minimumSellQuantity(instrument);
+            const minimumQuantity = this.Calculation.minimumSellQuantity(instrument);
 
             if (minimumQuantity * ticker.k >= underperformerWorth) {
                 continue;
@@ -1142,7 +1138,7 @@ export class Trade {
                         }
 
                         const quantity = this.Calculation.fixQuantity(instrument, croBalance ? croBalance.available : coin.available);
-                        const minimumQuantity = this.minimumSellQuantity(instrument);
+                        const minimumQuantity = this.Calculation.minimumSellQuantity(instrument);
 
                         if (quantity < minimumQuantity) {
                             continue;
