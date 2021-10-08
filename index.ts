@@ -314,37 +314,43 @@ class Bot {
                  * not abort any running schedules. We will wait for a total of 10 minutes. If the
                  * queue is still not empty at that time, the update will be aborted.
                  */
-                this._autoUpdateRunning = true;
+                try {
+                    this._autoUpdateRunning = true;
 
-                console.log(`[UPDATE] Waiting for schedules to finish`);
-
-                for (let i = 0; i < 600; i++) {
-                    if (this._trailingStopRunning || this._investingRunning || this._rebalancingRunning) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-                    else {
-                        /**
-                         * Start the update child process and detach it from the parent.
-                         */
-                        try {
-                            console.log(`[UPDATE] Checking for new updates`);
-
-                            const subprocess = spawn("sh", ["update.sh"], {
-                                detached: true,
-                                stdio: "ignore"
-                            });
-
-                            subprocess.unref();
+                    console.log(`[UPDATE] Waiting for schedules to finish`);
+    
+                    for (let i = 0; i < 600; i++) {
+                        if (this._trailingStopRunning || this._investingRunning || this._rebalancingRunning) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
                         }
-                        catch (err) {
-                            console.error(err);
+                        else {
+                            /**
+                             * Start the update child process and detach it from the parent.
+                             */
+                            try {
+                                console.log(`[UPDATE] Checking for new updates`);
+    
+                                const subprocess = spawn("sh", ["update.sh"], {
+                                    detached: true,
+                                    stdio: "ignore"
+                                });
+    
+                                subprocess.unref();
+                            }
+                            catch (err) {
+                                console.error(err);
+                            }
+    
+                            break;
                         }
-
-                        break;
                     }
                 }
-
-                this._autoUpdateRunning = false;
+                catch(err) {
+                    console.error(err);
+                }
+                finally {
+                    this._autoUpdateRunning = false;
+                }
             });
         }
 
