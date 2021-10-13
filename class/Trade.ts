@@ -1151,6 +1151,11 @@ export class Trade {
                         }
                     }
 
+                    /**
+                     * Empty the coin removal list.
+                     */
+                    await this.setCoinRemovalList([]);
+
                     console.log(`Portfolio sold, trading will resume in ${CONFIG.TRAILING_STOP.RESUME} hours`);
                 }
             }
