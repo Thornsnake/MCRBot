@@ -165,6 +165,60 @@ export const CONFIG = {
     IDLE_MESSAGE: "[CHECK] Rebalance not necessary",
 
     /**
+     * Post messages to social media platform via webhooks when the bot invests new money,
+     * rebalances the portfolio or triggers the trailing stop.
+     */
+    WEBHOOKS: {
+        /**
+         * You can create a webhook in Discord in the server integration settings. Make sure you
+         * select the correct channel you want the messages posted into and copy the webhook URL
+         * into the URL option below.
+         */
+        DISCORD: {
+            /**
+             * Whether to post messages to the webhook or not.
+             */
+            ACTIVE: false,
+            /**
+             * The webhook URL. Keep this secret. Anyone who has your webhook URL can post messages
+             * with it directly to your Discord server.
+             */
+            URL: "",
+            /**
+             * What kind of events to post.
+             */
+            POST: {
+                /**
+                 * The bot invested new money from your quote currency to the other coins.
+                 */
+                INVEST: true,
+                /**
+                 * The bot rebalanced your portfolio, because a coin fell out of the market cap.
+                 */
+                REBALANCE_MARKET_CAP: true,
+                /**
+                 * The bot rebalanced your portfolio, because one or more coins were
+                 * overperforming.
+                 */
+                REBALANCE_OVERPERFORMERS: true,
+                /**
+                * The bot rebalanced your portfolio, because one or more coins were
+                * underperforming.
+                */
+                REBALANCE_UNDERPERFORMERS: true,
+                /**
+                 * The bot triggered the trailing stop and liquidated your portfolio.
+                 */
+                TRAILING_STOP: true,
+                /**
+                 * The bot now continues to trade, after the trailing stop was hit.
+                 */
+                CONTINUE: true
+            }
+        }
+    },
+
+    /**
      * Automatically check for updates every 24 hours. When an update is found, the bot will look
      * for a free time window (between your schedules) to do the update and restart itself.
      * 

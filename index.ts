@@ -4,6 +4,7 @@ import { CONFIG } from "./config.js";
 import cronValidator from "cron-validator";
 import Queue from "better-queue";
 import { spawn } from "child_process";
+import { EMessageType, WebHook } from "./class/WebHook.js";
 
 class Bot {
     private _trade: Trade;
@@ -224,6 +225,26 @@ class Bot {
         }
 
         /**
+         * Make sure the webhooks option is not missing and set a default value if it is.
+         */
+        if (CONFIG["WEBHOOKS"] === undefined) {
+            CONFIG["WEBHOOKS"] = {
+                DISCORD: {
+                    ACTIVE: false,
+                    URL: "",
+                    POST: {
+                        INVEST: true,
+                        REBALANCE_MARKET_CAP: true,
+                        REBALANCE_OVERPERFORMERS: true,
+                        REBALANCE_UNDERPERFORMERS: true,
+                        TRAILING_STOP: true,
+                        CONTINUE: true
+                    }
+                }
+            };
+        }
+
+        /**
          * Make sure the auto update is not missing and set a default value if it is.
          */
         if (CONFIG["AUTO_UPDATE"] === undefined) {
@@ -318,7 +339,7 @@ class Bot {
                     this._autoUpdateRunning = true;
 
                     console.log(`[UPDATE] Waiting for schedules to finish`);
-    
+
                     for (let i = 0; i < 600; i++) {
                         if (this._trailingStopRunning || this._investingRunning || this._rebalancingRunning) {
                             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -329,23 +350,23 @@ class Bot {
                              */
                             try {
                                 console.log(`[UPDATE] Checking for new updates`);
-    
+
                                 const subprocess = spawn("sh", ["update.sh"], {
                                     detached: true,
                                     stdio: "ignore"
                                 });
-    
+
                                 subprocess.unref();
                             }
                             catch (err) {
                                 console.error(err);
                             }
-    
+
                             break;
                         }
                     }
                 }
-                catch(err) {
+                catch (err) {
                     console.error(err);
                 }
                 finally {

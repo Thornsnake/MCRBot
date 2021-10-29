@@ -11,6 +11,7 @@ import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 import { Disk } from "./Disk.js";
 import { IPortfolioATH } from "../interface/IPortfolioATH.js";
 import { IAccount } from "../interface/IAccount.js";
+import { EMessageDataRebalanceCoinDirection, EMessageType, IMessageDataInvest, IMessageDataRebalance, WebHook } from "./WebHook.js";
 
 enum ETradeType {
     INVEST = "invest",
@@ -285,6 +286,14 @@ export class Trade {
         }
 
         /**
+         * Create a list of sold and bought coins for the webhook message.
+         */
+        const webhookData: IMessageDataRebalance = {
+            portfolioWorth: portfolioWorth,
+            coins: []
+        }
+
+        /**
         * If a coins has fallen out of the top x coins by market cap, sell the coin and rebalance
         * the money over the other coins.
         */
@@ -338,7 +347,14 @@ export class Trade {
 
                         coinRemovalList.splice(index, 1);
 
-                        console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${(quantity * ticker.k)} ${CONFIG.QUOTE}`);
+                        console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${(soldCoinWorth)} ${CONFIG.QUOTE}`);
+
+                        webhookData.coins.push({
+                            currency: coinBalance.currency.toUpperCase(),
+                            amount: soldCoinWorth,
+                            percentage: 0,
+                            direction: EMessageDataRebalanceCoinDirection.SELL
+                        });
                     }
                 }
             }
@@ -411,7 +427,18 @@ export class Trade {
                 soldCoinWorth -= buyNotional;
 
                 console.log(`[BUY] ${coin} for ${buyNotional} ${CONFIG.QUOTE}`);
+
+                webhookData.coins.push({
+                    currency: coin,
+                    amount: buyNotional,
+                    percentage: 0,
+                    direction: EMessageDataRebalanceCoinDirection.BUY
+                });
             }
+        }
+
+        if (webhookData.coins.length > 0) {
+            WebHook.sendToDiscord(webhookData, EMessageType.REBALANCE_MARKET_CAP);
         }
 
         return hadWorkToDo;
@@ -462,6 +489,14 @@ export class Trade {
         }
 
         /**
+         * Create a list of sold and bought coins for the webhook message.
+         */
+        const webhookData: IMessageDataRebalance = {
+            portfolioWorth: portfolioWorth,
+            coins: []
+        }
+
+        /**
          * Sell overperforming coins.
          */
         let soldCoinWorth = 0;
@@ -506,6 +541,13 @@ export class Trade {
                 ignoreList.push(coin.name);
 
                 console.log(`[SELL] ${tradableCoin} for ${coin.deviation} ${CONFIG.QUOTE}`);
+
+                webhookData.coins.push({
+                    currency: tradableCoin,
+                    amount: coin.deviation,
+                    percentage: coin.percentage,
+                    direction: EMessageDataRebalanceCoinDirection.SELL
+                });
             }
         }
 
@@ -577,7 +619,18 @@ export class Trade {
                 soldCoinWorth -= buyNotional;
 
                 console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional} ${CONFIG.QUOTE}`);
+
+                webhookData.coins.push({
+                    currency: lowestPerformer.name,
+                    amount: lowestPerformer.deviation,
+                    percentage: lowestPerformer.percentage,
+                    direction: EMessageDataRebalanceCoinDirection.BUY
+                });
             }
+        }
+
+        if (webhookData.coins.length > 0) {
+            WebHook.sendToDiscord(webhookData, EMessageType.REBALANCE_OVERPERFORMERS);
         }
 
         return hadWorkToDo;
@@ -642,6 +695,14 @@ export class Trade {
         }
 
         /**
+         * Create a list of sold and bought coins for the webhook message.
+         */
+        const webhookData: IMessageDataRebalance = {
+            portfolioWorth: portfolioWorth,
+            coins: []
+        }
+
+        /**
          * Sell well performing coins until we have enough money to bring up the underperformers.
          */
         let soldCoinWorth = 0;
@@ -690,6 +751,13 @@ export class Trade {
                 soldCoinWorth += quantity * ticker.k;
 
                 console.log(`[SELL] ${highestPerformer.name} for ${sellNotional} ${CONFIG.QUOTE}`);
+
+                webhookData.coins.push({
+                    currency: highestPerformer.name,
+                    amount: highestPerformer.deviation,
+                    percentage: highestPerformer.percentage,
+                    direction: EMessageDataRebalanceCoinDirection.SELL
+                });
             }
         }
 
@@ -763,7 +831,18 @@ export class Trade {
                 soldCoinWorth -= buyNotional;
 
                 console.log(`[BUY] ${lowestPerformer.name} for ${buyNotional} ${CONFIG.QUOTE}`);
+
+                webhookData.coins.push({
+                    currency: lowestPerformer.name,
+                    amount: lowestPerformer.deviation,
+                    percentage: lowestPerformer.percentage,
+                    direction: EMessageDataRebalanceCoinDirection.BUY
+                });
             }
+        }
+
+        if (webhookData.coins.length > 0) {
+            WebHook.sendToDiscord(webhookData, EMessageType.REBALANCE_UNDERPERFORMERS);
         }
 
         return hadWorkToDo;
@@ -880,6 +959,28 @@ export class Trade {
             ...portfolioATH,
             investment: investment
         });
+
+        /**
+         * Get the current account balance of the user for all coins.
+         */
+        balance = await this.Account.all();
+
+        /**
+         * Calculate the current portfolio worth.
+         */
+        const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, tickers);
+
+        /**
+         * Create information for the webhook message.
+         */
+        const webhookData: IMessageDataInvest = {
+            investment: totalInvestment,
+            remainingFunds: availableFunds,
+            coinAmount: tradableCoins.length,
+            portfolioWorth: portfolioWorth
+        }
+
+        WebHook.sendToDiscord(webhookData, EMessageType.INVEST);
     }
 
     public async rebalance() {
@@ -1026,6 +1127,11 @@ export class Trade {
                  * Save the current portfolio statistics for the trailing stop.
                  */
                 await this.setPortfolioATH(portfolioATH);
+
+                /**
+                 * Send a webhook message.
+                 */
+                WebHook.sendToDiscord(null, EMessageType.CONTINUE);
             }
         }
 
@@ -1157,6 +1263,11 @@ export class Trade {
                     await this.setCoinRemovalList([]);
 
                     console.log(`Portfolio sold, trading will resume in ${CONFIG.TRAILING_STOP.RESUME} hours`);
+
+                    /**
+                     * Send a webhook message.
+                     */
+                    WebHook.sendToDiscord(null, EMessageType.TRAILING_STOP);
                 }
             }
         }
