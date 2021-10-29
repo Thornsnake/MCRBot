@@ -127,7 +127,7 @@ class WebHook {
                 for (let i = 0; i < messageData.coins.length; i++) {
                     if ((i + 1) < 25) {
                         const coin = messageData.coins[i];
-                        embed.addField(`${coin.currency}`, `${coin.direction} for ${this.formatCurrency(coin.amount)} ${CONFIG.QUOTE}`, true);
+                        embed.addField(`${coin.currency}`, `${coin.direction} for ${this.formatCurrency(Math.abs(coin.amount))} ${CONFIG.QUOTE}`, true);
                     }
                     else {
                         embed.addField(`and more ...`, ``, true);
@@ -140,12 +140,12 @@ class WebHook {
 
                 embed.setColor(parseInt("0x0b8f8f", 16));
                 embed.setTitle("Portfolio rebalanced");
-                embed.setDescription(`Your portfolio has been rebalanced, because one or more coins were **overperforming**.\nCurrent portfolio worth is **${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}**.`)
+                embed.setDescription(`Coins in your portfolio were **overperforming**.\nCurrent portfolio worth is **${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}**.`)
                 
                 for (let i = 0; i < messageData.coins.length; i++) {
                     if ((i + 1) < 25) {
                         const coin = messageData.coins[i];
-                        embed.addField(`${coin.currency} (${coin.direction === EMessageDataRebalanceCoinDirection.SELL ? "▲" : "▼"} ${coin.percentage.toFixed(2)}%)`, `${coin.direction} for ${this.formatCurrency(coin.amount)} ${CONFIG.QUOTE}`, true);
+                        embed.addField(`${coin.currency} (${coin.direction === EMessageDataRebalanceCoinDirection.SELL ? "▲" : "▼"} ${coin.percentage.toFixed(2)}%)`, `${coin.direction} for ${this.formatCurrency(Math.abs(coin.amount))} ${CONFIG.QUOTE}`, true);
                     }
                     else {
                         embed.addField(`and more ...`, ``, true);
@@ -158,12 +158,12 @@ class WebHook {
 
                 embed.setColor(parseInt("0x0b8f8f", 16));
                 embed.setTitle("Portfolio rebalanced");
-                embed.setDescription(`Your portfolio has been rebalanced, because one or more coins were **underperforming**.\nCurrent portfolio worth is **${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}**.`)
+                embed.setDescription(`Coins in your portfolio were **underperforming**.\nCurrent portfolio worth is **${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}**.`)
                 
                 for (let i = 0; i < messageData.coins.length; i++) {
                     if ((i + 1) < 25) {
                         const coin = messageData.coins[i];
-                        embed.addField(`${coin.currency} (${coin.direction === EMessageDataRebalanceCoinDirection.SELL ? "▲" : "▼"} ${coin.percentage.toFixed(2)}%)`, `${coin.direction} for ${this.formatCurrency(coin.amount)} ${CONFIG.QUOTE}`, true);
+                        embed.addField(`${coin.currency} (${coin.direction === EMessageDataRebalanceCoinDirection.SELL ? "▲" : "▼"} ${coin.percentage.toFixed(2)}%)`, `${coin.direction} for ${this.formatCurrency(Math.abs(coin.amount))} ${CONFIG.QUOTE}`, true);
                     }
                     else {
                         embed.addField(`and more ...`, ``, true);
