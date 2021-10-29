@@ -111,9 +111,8 @@ class WebHook {
 
                 embed.setColor(parseInt("0x0b8f19", 16));
                 embed.setTitle("New Investment");
-                embed.setDescription("More coins have been bought.");
-                embed.addField("Investment", `${this.formatCurrency(messageData.investment)} ${CONFIG.QUOTE}`, true);
-                embed.addField("Coins", `${messageData.coinAmount}`, true);
+                embed.setDescription("More coins have been bought and were added to your portfolio.");
+                embed.addField("Investment", `${this.formatCurrency(messageData.investment)} ${CONFIG.QUOTE} [${messageData.coinAmount} coins]`, true);
                 embed.addField("Remaining Funds", `${this.formatCurrency(messageData.remainingFunds)} ${CONFIG.QUOTE}`, true);
                 embed.addField("Portfolio Worth", `${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}`, true);
             }
