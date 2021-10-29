@@ -62,6 +62,18 @@ class WebHook {
         return this._discordWebHook;
     }
 
+    private formatCurrency(value: number) {
+        const fractionDigits = CONFIG.QUOTE === "USDC" || CONFIG.QUOTE === "USDT" ? 2 : CONFIG.QUOTE === "BTC" ? 6 : 5;
+        const fixedValue = value.toFixed(fractionDigits);
+    
+        const leftSide = fixedValue.split(".")[0];
+        const rightSide = fixedValue.split(".")[1];
+    
+        const leftSideWithSeparators = leftSide.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    
+        return leftSideWithSeparators + "." + rightSide;
+    }
+
     public sendToDiscord(data: IMessageDataInvest | IMessageDataRebalance | null, type: EMessageType) {
         if (CONFIG["WEBHOOKS"]["DISCORD"]["ACTIVE"]) {
             if (!CONFIG["WEBHOOKS"]["DISCORD"]["URL"] || CONFIG["WEBHOOKS"]["DISCORD"]["URL"].trim().length === 0) {
@@ -94,30 +106,28 @@ class WebHook {
 
             const embed = new MessageBuilder();
 
-            const fractionDigits = CONFIG.QUOTE === "USDC" || CONFIG.QUOTE === "USDT" ? 2 : CONFIG.QUOTE === "BTC" ? 6 : 5;
-            
             if (type === EMessageType.INVEST) {
                 const messageData = <IMessageDataInvest>data;
 
                 embed.setColor(parseInt("0x0b8f19", 16));
                 embed.setTitle("New Investment");
                 embed.setDescription("More coins have been bought.");
-                embed.addField("Investment", `${messageData.investment.toFixed(fractionDigits)} ${CONFIG.QUOTE}`, true);
+                embed.addField("Investment", `${this.formatCurrency(messageData.investment)} ${CONFIG.QUOTE}`, true);
                 embed.addField("Coins", `${messageData.coinAmount}`, true);
-                embed.addField("Remaining Funds", `${messageData.remainingFunds.toFixed(fractionDigits)} ${CONFIG.QUOTE}`, true);
-                embed.addField("Portfolio Worth", `${messageData.portfolioWorth.toFixed(fractionDigits)} ${CONFIG.QUOTE}`, true);
+                embed.addField("Remaining Funds", `${this.formatCurrency(messageData.remainingFunds)} ${CONFIG.QUOTE}`, true);
+                embed.addField("Portfolio Worth", `${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}`, true);
             }
             else if (type === EMessageType.REBALANCE_MARKET_CAP) {
                 const messageData = <IMessageDataRebalance>data;
 
                 embed.setColor(parseInt("0x0b8f8f", 16));
                 embed.setTitle("Portfolio rebalanced");
-                embed.setDescription(`Your portfolio has been rebalanced, because one or more coins fell out of the defined **market cap**.\nCurrent portfolio worth is **${messageData.portfolioWorth.toFixed(fractionDigits)} ${CONFIG.QUOTE}**.`)
+                embed.setDescription(`Your portfolio has been rebalanced, because one or more coins fell out of the defined **market cap**.\nCurrent portfolio worth is **${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}**.`)
                 
                 for (let i = 0; i < messageData.coins.length; i++) {
                     if ((i + 1) < 25) {
                         const coin = messageData.coins[i];
-                        embed.addField(`${coin.currency}`, `${coin.direction} for ${coin.amount.toFixed(fractionDigits)} ${CONFIG.QUOTE}`, true);
+                        embed.addField(`${coin.currency}`, `${coin.direction} for ${this.formatCurrency(coin.amount)} ${CONFIG.QUOTE}`, true);
                     }
                     else {
                         embed.addField(`and more ...`, ``, true);
@@ -130,12 +140,12 @@ class WebHook {
 
                 embed.setColor(parseInt("0x0b8f8f", 16));
                 embed.setTitle("Portfolio rebalanced");
-                embed.setDescription(`Your portfolio has been rebalanced, because one or more coins were **overperforming**.\nCurrent portfolio worth is **${messageData.portfolioWorth.toFixed(fractionDigits)} ${CONFIG.QUOTE}**.`)
+                embed.setDescription(`Your portfolio has been rebalanced, because one or more coins were **overperforming**.\nCurrent portfolio worth is **${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}**.`)
                 
                 for (let i = 0; i < messageData.coins.length; i++) {
                     if ((i + 1) < 25) {
                         const coin = messageData.coins[i];
-                        embed.addField(`${coin.currency} (${coin.direction === EMessageDataRebalanceCoinDirection.SELL ? "▲" : "▼"} ${coin.percentage.toFixed(2)}%)`, `${coin.direction} for ${coin.amount.toFixed(fractionDigits)} ${CONFIG.QUOTE}`, true);
+                        embed.addField(`${coin.currency} (${coin.direction === EMessageDataRebalanceCoinDirection.SELL ? "▲" : "▼"} ${coin.percentage.toFixed(2)}%)`, `${coin.direction} for ${this.formatCurrency(coin.amount)} ${CONFIG.QUOTE}`, true);
                     }
                     else {
                         embed.addField(`and more ...`, ``, true);
@@ -148,12 +158,12 @@ class WebHook {
 
                 embed.setColor(parseInt("0x0b8f8f", 16));
                 embed.setTitle("Portfolio rebalanced");
-                embed.setDescription(`Your portfolio has been rebalanced, because one or more coins were **underperforming**.\nCurrent portfolio worth is **${messageData.portfolioWorth.toFixed(fractionDigits)} ${CONFIG.QUOTE}**.`)
+                embed.setDescription(`Your portfolio has been rebalanced, because one or more coins were **underperforming**.\nCurrent portfolio worth is **${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}**.`)
                 
                 for (let i = 0; i < messageData.coins.length; i++) {
                     if ((i + 1) < 25) {
                         const coin = messageData.coins[i];
-                        embed.addField(`${coin.currency} (${coin.direction === EMessageDataRebalanceCoinDirection.SELL ? "▲" : "▼"} ${coin.percentage.toFixed(2)}%)`, `${coin.direction} for ${coin.amount.toFixed(fractionDigits)} ${CONFIG.QUOTE}`, true);
+                        embed.addField(`${coin.currency} (${coin.direction === EMessageDataRebalanceCoinDirection.SELL ? "▲" : "▼"} ${coin.percentage.toFixed(2)}%)`, `${coin.direction} for ${this.formatCurrency(coin.amount)} ${CONFIG.QUOTE}`, true);
                     }
                     else {
                         embed.addField(`and more ...`, ``, true);
