@@ -4,7 +4,6 @@ import { CONFIG } from "./config.js";
 import cronValidator from "cron-validator";
 import Queue from "better-queue";
 import { spawn } from "child_process";
-import { EMessageType, WebHook } from "./class/WebHook.js";
 
 class Bot {
     private _trade: Trade;
@@ -222,26 +221,6 @@ class Bot {
          */
         if (CONFIG["IDLE_MESSAGE"] === undefined) {
             CONFIG["IDLE_MESSAGE"] = "[CHECK] Rebalance not necessary";
-        }
-
-        /**
-         * Make sure the webhooks option is not missing and set a default value if it is.
-         */
-        if (CONFIG["WEBHOOKS"] === undefined) {
-            CONFIG["WEBHOOKS"] = {
-                DISCORD: {
-                    ACTIVE: false,
-                    URL: "",
-                    POST: {
-                        INVEST: true,
-                        REBALANCE_MARKET_CAP: true,
-                        REBALANCE_OVERPERFORMERS: true,
-                        REBALANCE_UNDERPERFORMERS: true,
-                        TRAILING_STOP: true,
-                        CONTINUE: true
-                    }
-                }
-            };
         }
 
         /**

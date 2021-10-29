@@ -38,6 +38,23 @@ class WebHook {
     private _discordWebHook: Webhook;
 
     constructor() {
+        if (CONFIG["WEBHOOKS"] === undefined) {
+            CONFIG["WEBHOOKS"] = {
+                DISCORD: {
+                    ACTIVE: false,
+                    URL: "",
+                    POST: {
+                        INVEST: true,
+                        REBALANCE_MARKET_CAP: true,
+                        REBALANCE_OVERPERFORMERS: true,
+                        REBALANCE_UNDERPERFORMERS: true,
+                        TRAILING_STOP: true,
+                        CONTINUE: true
+                    }
+                }
+            };
+        }
+
         this._discordWebHook = new Webhook(CONFIG["WEBHOOKS"]["DISCORD"]["URL"]);
     }
 
