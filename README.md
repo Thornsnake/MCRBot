@@ -1,5 +1,5 @@
 # MCRBot
-**This bot has both a DCA feature (Dollar Cost Averaging) and will also keep your portfolio balanced automatically. The coins in your portfolio can be either chosen manually, or automatically by market cap ranking.**
+**This bot has both a DCA feature (Dollar Cost Averaging) and will also keep your portfolio balanced automatically. The coins in your portfolio can be either chosen manually, or automatically by market cap ranking. It is also supporting Webhooks for Discord.**
 
 ## Requirements
 The bot is running on NodeJS and it is presumed you will want to run it with a process manager such as PM2, to automatically restart it in case of failure and keep it running when you detach from the terminal session. The following steps will make sure you have all prerequisits installed and the repository downloaded.
@@ -50,6 +50,7 @@ To configure the bot, open the `config.ts` file with your favorite file editor a
 | TRAILING_STOP > MAX_DROP   | number   | The maximum amount of value the portfolio is allowed to lose from its all time high before the trailing stop triggers and your portfolio is sold.
 | TRAILING_STOP > RESUME     | number   | The amount of hours to wait before resuming to DCA and rebalance after the trailing stop has been triggered.
 | IDLE_MESSAGE               | string   | A message that will be shown when the bot had nothing to rebalance, as opposed to just logging nothing.
+| WEBHOOKS                   | object   | Post messages to social media platforms via webhooks when there is a new investment, rebalance or trailing stop hit.
 | AUTO_UPDATE                | boolean  | Automatically check for updates every 24 hours and (if one was found) install them. Will restart the bot automatically after the update.
 | DRY                        | boolean  | Dry run. Don't execute the orders on the exchange. This is a debug feature.
 

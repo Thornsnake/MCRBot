@@ -165,7 +165,7 @@ export const CONFIG = {
     IDLE_MESSAGE: "[CHECK] Rebalance not necessary",
 
     /**
-     * Post messages to social media platform via webhooks when the bot invests new money,
+     * Post messages to social media platforms via webhooks when the bot invests new money,
      * rebalances the portfolio or triggers the trailing stop.
      */
     WEBHOOKS: {
