@@ -1,12 +1,62 @@
 import { CONFIG } from "../config.js";
 import { IAccount } from "../interface/IAccount.js";
+import { IBook } from "../interface/IBook.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
 import { IDistributionDelta } from "../interface/IDistributionDelta.js";
 import { IInstrument } from "../interface/IInstrument.js";
-import { ITicker } from "../interface/ITicker.js";
 
 export class Calculation {
     constructor() {}
+
+    public getOrderBookBidWorth(coinAmmount: number, book: IBook) {
+        let currencyWorth = 0;
+        let currencyAmount = coinAmmount;
+
+        for (const bid of book.bids) {
+            const price = bid[0];
+            const quantity = bid[1];
+
+            if (quantity <= currencyAmount) {
+                currencyWorth += quantity * price;
+            }
+            else {
+                currencyWorth += currencyAmount * price;
+            }
+
+            currencyAmount -= quantity;
+
+            if (currencyAmount <= 0) {
+                break;
+            }
+        }
+
+        return currencyWorth;
+    }
+
+    public getOrderBookAskWorth(coinAmmount: number, book: IBook) {
+        let currencyWorth = 0;
+        let currencyAmount = coinAmmount;
+
+        for (const ask of book.asks) {
+            const price = ask[0];
+            const quantity = ask[1];
+
+            if (quantity <= currencyAmount) {
+                currencyWorth += quantity * price;
+            }
+            else {
+                currencyWorth += currencyAmount * price;
+            }
+
+            currencyAmount -= quantity;
+
+            if (currencyAmount <= 0) {
+                break;
+            }
+        }
+
+        return currencyWorth;
+    }
 
     public getTradableCoins(instruments: IInstrument[], stablecoins: string[], coins: string[], coinRemovalList?: ICoinRemoval[]) {
         const tradableCoins: string[] = [];
@@ -72,7 +122,7 @@ export class Calculation {
         return tradableCoins;
     }
 
-    public getPortfolioWorth(balance: IAccount[], tradableCoins: string[], tickers: ITicker[]) {
+    public getPortfolioWorth(balance: IAccount[], tradableCoins: string[], book: IBook[]) {
         let portfolioWorth = 0;
 
         for (const tradableCoin of tradableCoins) {
@@ -84,21 +134,21 @@ export class Calculation {
                 continue;
             }
 
-            const ticker = tickers.find((row) => {
-                return row.i.split("_")[0].toUpperCase() === coin.currency.toUpperCase() && row.i.split("_")[1].toUpperCase() === CONFIG.QUOTE.toUpperCase();
+            const orderBook = book.find((row) => {
+                return row.i === `${coin.currency}_${CONFIG.QUOTE}`;
             });
-
-            if (!ticker) {
+    
+            if (!orderBook) {
                 continue;
             }
 
-            portfolioWorth += coin.available * ticker.b;
+            portfolioWorth += this.getOrderBookBidWorth(coin.available, orderBook);
         }
 
         return portfolioWorth;
     }
 
-    public getDistributionDelta(portfolioWorth: number, tradableCoins: string[], balance: IAccount[], tickers: ITicker[]) {
+    public getDistributionDelta(portfolioWorth: number, tradableCoins: string[], balance: IAccount[], book: IBook[]) {
         const deviations: IDistributionDelta[] = [];
 
         for (const tradableCoin of tradableCoins) {
@@ -110,11 +160,11 @@ export class Calculation {
                 continue;
             }
 
-            const ticker = tickers.find((row) => {
+            const orderBook = book.find((row) => {
                 return row.i.split("_")[0].toUpperCase() === coin.currency.toUpperCase() && row.i.split("_")[1].toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
 
-            if (!ticker) {
+            if (!orderBook) {
                 continue;
             }
 
@@ -137,7 +187,8 @@ export class Calculation {
             }, 0);
 
             const coinTarget = CONFIG.WEIGHT[tradableCoin] ? portfolioWorth * (CONFIG.WEIGHT[tradableCoin] / 100) : portfolioWorth * ((100 - reservedWeight) / 100) / (tradableCoins.length - validReservedCoins);
-            const deviation = (coin.available * ticker.b) - coinTarget;
+            const deviation = (this.getOrderBookBidWorth(coin.available, orderBook)) - coinTarget;
+
             const percentageDelta = (((deviation + coinTarget) / coinTarget) - 1) * 100;
 
             deviations.push({
@@ -225,9 +276,9 @@ export class Calculation {
         return Math.floor(quantity * Math.pow(10, instrument.quantity_decimals)) / Math.pow(10, instrument.quantity_decimals);
     }
 
-    public minimumBuyNotional(instrument: IInstrument, ticker: ITicker) {
+    public minimumBuyNotional(instrument: IInstrument, book: IBook) {
         const minPriceNotional = (1 / Math.pow(10, instrument.price_decimals)) * 1.1;
-        const minQuantityNotional = (ticker.k / Math.pow(10, instrument.quantity_decimals)) * 1.1;
+        const minQuantityNotional = (book.asks[0][0] / Math.pow(10, instrument.quantity_decimals)) * 1.1;
 
         return minPriceNotional > minQuantityNotional ? minPriceNotional : minQuantityNotional;
     }
