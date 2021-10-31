@@ -234,10 +234,6 @@ class Bot {
     }
 
     async run() {
-        await this._trade.stop();
-
-        // Remove above
-
         const configurationValid = await this.check();
 
         if (!configurationValid) {
