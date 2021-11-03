@@ -181,7 +181,11 @@ class WebHook {
                 embed.setDescription("The bot has resumed its trading activity after the trailing stop had been hit!")
             }
 
-            this.DiscordWebHook.send(embed);
+            this.DiscordWebHook.send(
+                embed
+            ).catch((err) => {
+                console.error(err);
+            });
         }
     }
 }
