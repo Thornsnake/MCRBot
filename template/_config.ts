@@ -207,9 +207,14 @@ export const CONFIG = {
                 */
                 REBALANCE_UNDERPERFORMERS: true,
                 /**
-                 * The bot triggered the trailing stop and liquidated your portfolio.
+                 * The bot triggered the trailing stop and sold your portfolio.
                  */
                 TRAILING_STOP: true,
+                /**
+                 * The bot armed the trailing stop and will sell the portfolio when the price drops
+                 * too much.
+                 */
+                ARMED: true,
                 /**
                  * The bot now continues to trade, after the trailing stop was hit.
                  */

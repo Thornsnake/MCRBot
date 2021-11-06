@@ -1203,9 +1203,19 @@ export class Trade {
         /**
          * Check if the trailing stop should be switched to active.
          */
+        const prevActive = portfolioATH.active;
         portfolioATH.active = portfolioATH.active ? portfolioATH.active : ((portfolioATH.allTimeHigh / portfolioATH.investment) - 1) * 100 >= CONFIG.TRAILING_STOP.MIN_PROFIT;
 
         if (portfolioATH.active) {
+            /**
+             * If the trailing stop was not previously active, send a message that it gas now been
+             * activated.
+             */
+            if (!prevActive) {
+                console.log("The trailing stop has been armed!");
+                WebHook.sendToDiscord(null, EMessageType.ARMED);
+            }
+
             /**
              * Check if the trailing stop should be triggered.
              */

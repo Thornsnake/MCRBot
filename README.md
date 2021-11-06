@@ -11,8 +11,6 @@ After NodeJS is installed, check the version with `node -v`. The required minimu
 `curl -sL https://deb.nodesource.com/setup_14.x | sudo bash -`
 
 After you have done that, you can install the new NodeJS version by executing `apt-get install nodejs` again.
-##### Install NPM
-The Node Package Manager (NPM) is required to install package requirements for the bot and can be installed with `apt-get install npm`, if it has no been installed already.
 ##### Install PM2
 PM2 is a process manager that will keep your bot running as well as restart it after failure. It can be installed with `npm install pm2 -g`.
 ##### Install Logrotate
