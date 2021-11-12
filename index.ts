@@ -271,7 +271,7 @@ class Bot {
         /**
          * Initiates the trailing stop schedule.
          */
-        this._trailingStopSchedule = new cron.CronJob(CONFIG.SCHEDULE.TRAILING_STOP, async () => {
+        this._trailingStopSchedule = new cron.CronJob(CONFIG.SCHEDULE.TRAILING_STOP, () => {
             if (this._autoUpdateRunning) {
                 return;
             }
@@ -282,7 +282,7 @@ class Bot {
         /**
          * Initiates the investing schedule.
          */
-        this._investingSchedule = new cron.CronJob(CONFIG.SCHEDULE.INVESTING, async () => {
+        this._investingSchedule = new cron.CronJob(CONFIG.SCHEDULE.INVESTING, () => {
             if (this._autoUpdateRunning) {
                 return;
             }
@@ -293,7 +293,7 @@ class Bot {
         /**
          * Initiates the rebalancing schedule.
          */
-        this._rebalancingSchedule = new cron.CronJob(CONFIG.SCHEDULE.REBALANCE, async () => {
+        this._rebalancingSchedule = new cron.CronJob(CONFIG.SCHEDULE.REBALANCE, () => {
             if (this._autoUpdateRunning) {
                 return;
             }

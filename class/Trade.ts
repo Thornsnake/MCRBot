@@ -198,7 +198,9 @@ export class Trade {
         /**
          * Make sure everything is present.
          */
-        if (!balance || !book) {
+        if (!balance || !book || balance.length === 0 || book.length === 0) {
+            console.error("Account balance or order book are empty");
+
             return;
         }
 
@@ -359,7 +361,9 @@ export class Trade {
          */
         balance = await this.Account.all();
 
-        if (!balance) {
+        if (!balance || balance.length === 0) {
+            console.error("Account balance is empty");
+
             return;
         }
 
@@ -452,7 +456,9 @@ export class Trade {
         /**
          * Make sure everything is present.
          */
-        if (!balance || !book) {
+        if (!balance || !book || balance.length === 0 || book.length === 0) {
+            console.error("Account balance or order book are empty");
+
             return;
         }
 
@@ -548,7 +554,9 @@ export class Trade {
          */
         balance = await this.Account.all();
 
-        if (!balance) {
+        if (!balance || balance.length === 0) {
+            console.error("Account balance is empty");
+
             return;
         }
 
@@ -644,7 +652,9 @@ export class Trade {
         /**
          * Make sure everything is present.
          */
-        if (!balance || !book) {
+        if (!balance || !book || balance.length === 0 || book.length === 0) {
+            console.error("Account balance or order book are empty");
+
             return;
         }
 
@@ -758,7 +768,9 @@ export class Trade {
          */
         balance = await this.Account.all();
 
-        if (!balance) {
+        if (!balance || balance.length === 0) {
+            console.error("Account balance is empty");
+
             return;
         }
 
@@ -854,7 +866,9 @@ export class Trade {
         /**
          * Make sure everything is present.
          */
-        if (!balance || !book) {
+        if (!balance || !book || balance.length === 0 || book.length === 0) {
+            console.error("Account balance or order book are empty");
+
             return;
         }
 
@@ -937,7 +951,9 @@ export class Trade {
             /**
              * Make sure everything is present.
              */
-            if (!balance || !book) {
+            if (!balance || !book || balance.length === 0 || book.length === 0) {
+                console.error("Account balance or order book are empty");
+                
                 return;
             }
 
@@ -966,6 +982,15 @@ export class Trade {
          * Get the order book for all tradable coins.
          */
         book = await this.Book.all(tradableCoins);
+
+        /**
+         * Make sure everything is present.
+         */
+         if (!balance || !book || balance.length === 0 || book.length === 0) {
+            console.error("Account balance or order book are empty");
+
+            return;
+        }
 
         /**
          * Calculate the current portfolio worth.
