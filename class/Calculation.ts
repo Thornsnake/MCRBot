@@ -6,7 +6,7 @@ import { IDistributionDelta } from "../interface/IDistributionDelta.js";
 import { IInstrument } from "../interface/IInstrument.js";
 
 export class Calculation {
-    constructor() {}
+    constructor() { }
 
     public getOrderBookBidWorth(coinAmmount: number, book: IBook) {
         let currencyWorth = 0;
@@ -137,7 +137,7 @@ export class Calculation {
             const orderBook = book.find((row) => {
                 return row.i === `${coin.currency}_${CONFIG.QUOTE}`;
             });
-    
+
             if (!orderBook) {
                 continue;
             }
@@ -226,7 +226,7 @@ export class Calculation {
                 lowestPerformer = coin;
                 continue;
             }
-            
+
             if (coin.percentage < lowestPerformer.percentage) {
                 lowestPerformer = coin;
             }
@@ -235,13 +235,37 @@ export class Calculation {
         return lowestPerformer;
     }
 
-    public getUnderperformerWorth(distributionDelta: IDistributionDelta[]) {
+    public getUnderperformerWorth(instruments: IInstrument[], book: IBook[], distributionDelta: IDistributionDelta[]) {
         let underperformerWorth = 0;
+        let minimumBuyNotional = 0;
 
         for (const coin of distributionDelta) {
             if (coin.percentage <= 0 - CONFIG.THRESHOLD) {
+                const instrument = instruments.find((row) => {
+                    return row.base_currency.toUpperCase() === coin.name && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
+                });
+    
+                if (!instrument) {
+                    continue;
+                }
+    
+                const orderBook = book.find((row) => {
+                    return row.i === instrument.instrument_name;
+                });
+    
+                if (!orderBook) {
+                    continue;
+                }
+
+                const minimumNotional = this.fixNotional(instrument, this.minimumBuyNotional(instrument, orderBook));
+
                 underperformerWorth += Math.abs(coin.deviation);
+                minimumBuyNotional += minimumNotional;
             }
+        }
+
+        if (underperformerWorth <= minimumBuyNotional) {
+            underperformerWorth = 0;
         }
 
         return underperformerWorth;
@@ -259,7 +283,7 @@ export class Calculation {
                 highestPerformer = coin;
                 continue;
             }
-            
+
             if (coin.percentage > highestPerformer.percentage) {
                 highestPerformer = coin;
             }

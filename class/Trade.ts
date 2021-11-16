@@ -687,7 +687,14 @@ export class Trade {
         /**
          * Calculate how much money we need to bring up the underperformers.
          */
-        let underperformerWorth = this.Calculation.getUnderperformerWorth(distributionDelta);
+        let underperformerWorth = this.Calculation.getUnderperformerWorth(instruments, book, distributionDelta);
+
+        /**
+         * Check if there were any adjustable underperformers.
+         */
+        if (underperformerWorth === 0) {
+            return false;
+        }
 
         /**
          * Make sure the worth of the underperformers is not higher than the portfolio worth.
