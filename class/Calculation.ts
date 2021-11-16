@@ -264,7 +264,7 @@ export class Calculation {
             }
         }
 
-        if (underperformerWorth <= minimumBuyNotional) {
+        if (underperformerWorth <= minimumBuyNotional * 1.1) {
             underperformerWorth = 0;
         }
 
