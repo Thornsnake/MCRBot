@@ -24,7 +24,7 @@ export class Book {
             }
         }
         catch(err) {
-            console.error(`${err.name} - ${err.message}`);
+            console.error(err);
         }
 
         return books;

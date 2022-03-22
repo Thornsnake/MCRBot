@@ -29,7 +29,7 @@ export class Account {
             return response.data.result.accounts[0];
         }
         catch(err) {
-            console.error(`${err.name} - ${err.message}`);
+            console.error(err);
         }
     }
 
@@ -47,7 +47,7 @@ export class Account {
             return response.data.result.accounts;
         }
         catch(err) {
-            console.error(`${err.name} - ${err.message}`);
+            console.error(err);
         }
     }
 }

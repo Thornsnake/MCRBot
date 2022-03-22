@@ -11,7 +11,7 @@ export class Instrument {
             return response.data.result.instruments;
         }
         catch(err) {
-            console.error(`${err.name} - ${err.message}`);
+            console.error(err);
         }
     }
 }
