@@ -33,7 +33,7 @@ export class Account {
         }
     }
 
-    public async all(): Promise<IAccount[] | undefined> {
+    public async all(): Promise<IAccount[] | null> {
         try {
             const response = await axios.post(
                 "https://api.crypto.com/v2/private/get-account-summary",
@@ -49,5 +49,7 @@ export class Account {
         catch(err) {
             console.error(err);
         }
+
+        return null;
     }
 }

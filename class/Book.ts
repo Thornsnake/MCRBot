@@ -5,16 +5,16 @@ import { IBook } from "../interface/IBook.js";
 export class Book {
     constructor() {}
 
-    public async all(tradableCoins: string[]): Promise<IBook[] | undefined> {
-        const books: IBook[] = [];
-        const bookPromises: Promise<AxiosResponse>[] = [];
-
+    public async all(tradableCoins: string[]): Promise<IBook[] | null> {
         try {
+            const bookPromises: Promise<AxiosResponse>[] = [];
+
             for (const coin of tradableCoins) {
                 bookPromises.push(axios.get(`https://api.crypto.com/v2/public/get-book?instrument_name=${coin}_${CONFIG.QUOTE}&depth=150`, {timeout: 30000}));
             }
 
             const bookResponses = await Promise.all(bookPromises);
+            const books: IBook[] = null;
 
             for (const response of bookResponses) {
                 books.push({
@@ -22,11 +22,13 @@ export class Book {
                     ...response.data.result.data[0]
                 });
             }
+
+            return books;
         }
         catch(err) {
             console.error(err);
         }
 
-        return books;
+        return null;
     }
 }

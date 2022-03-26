@@ -1218,7 +1218,7 @@ export class Trade {
         /**
          * Make sure everything is present.
          */
-        if (!balance || !book) {
+        if (!balance || !book || balance.length === 0 || book.length === 0) {
             return;
         }
 
