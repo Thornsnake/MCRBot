@@ -14,7 +14,7 @@ export class Book {
             }
 
             const bookResponses = await Promise.all(bookPromises);
-            const books: IBook[] = null;
+            const books: IBook[] = [];
 
             for (const response of bookResponses) {
                 books.push({
