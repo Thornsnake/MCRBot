@@ -182,7 +182,7 @@ export class Trade {
         }
     }
 
-    private async rebalanceMarketCaps(instruments: IInstrument[], tradableCoins: string[]) {
+    private async rebalanceMarketCaps(instruments: IInstrument[], tradableCoins: string[], tradableCoinsWithoutRemovalList: string[]) {
         let hadWorkToDo = false;
 
         /**
@@ -224,6 +224,10 @@ export class Trade {
         const coinRemovalList = await this.getCoinRemovalList();
 
         for (const coinBalance of balance) {
+            if (coinBalance.available === 0) {
+                continue;
+            }
+
             const instrument = instruments.find((row) => {
                 return row.base_currency.toUpperCase() === coinBalance.currency.toUpperCase() && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
@@ -239,7 +243,7 @@ export class Trade {
                 continue;
             }
 
-            if (!tradableCoins.includes(coinBalance.currency.toUpperCase())) {
+            if (!tradableCoinsWithoutRemovalList.includes(coinBalance.currency.toUpperCase())) {
                 const coinRemoval = coinRemovalList.find((row) => {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
@@ -294,6 +298,10 @@ export class Trade {
         let soldCoinWorth = 0;
 
         for (const coinBalance of balance) {
+            if (coinBalance.available === 0) {
+                continue;
+            }
+
             const instrument = instruments.find((row) => {
                 return row.base_currency.toUpperCase() === coinBalance.currency.toUpperCase() && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
@@ -317,7 +325,7 @@ export class Trade {
                 continue;
             }
 
-            if (!tradableCoins.includes(coinBalance.currency.toUpperCase())) {
+            if (!tradableCoinsWithoutRemovalList.includes(coinBalance.currency.toUpperCase())) {
                 const coinRemoval = coinRemovalList.find((row) => {
                     return row.coin === coinBalance.currency.toUpperCase();
                 });
@@ -379,12 +387,12 @@ export class Trade {
         /**
          * Calculate the worth that should be invested into each coin.
          */
-        const coinWorth = soldCoinWorth / tradableCoins.length;
+        const coinWorth = soldCoinWorth / tradableCoinsWithoutRemovalList.length;
 
         /**
          * Re-invest into tradable coins.
          */
-        for (const coin of tradableCoins) {
+        for (const coin of tradableCoinsWithoutRemovalList) {
             const instrument = instruments.find((row) => {
                 return row.base_currency.toUpperCase() === coin && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
@@ -960,7 +968,7 @@ export class Trade {
              */
             if (!balance || !book || balance.length === 0 || book.length === 0) {
                 console.error("Account balance or order book are empty");
-                
+
                 return;
             }
 
@@ -993,7 +1001,7 @@ export class Trade {
         /**
          * Make sure everything is present.
          */
-         if (!balance || !book || balance.length === 0 || book.length === 0) {
+        if (!balance || !book || balance.length === 0 || book.length === 0) {
             console.error("Account balance or order book are empty");
 
             return;
@@ -1058,16 +1066,16 @@ export class Trade {
         const tradableCoinsWithoutRemovalList = this.Calculation.getTradableCoins(instruments, stablecoins, coins);
 
         /**
-         * Rebalance
-         */
-        const marketCapRebalanced = await this.rebalanceMarketCaps(instruments, tradableCoinsWithoutRemovalList);
-
-        /**
          * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
          * not stablecoins.
          */
         const coinRemovalList = await this.getCoinRemovalList();
         const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
+
+        /**
+         * Rebalance
+         */
+        const marketCapRebalanced = await this.rebalanceMarketCaps(instruments, tradableCoins, tradableCoinsWithoutRemovalList);
 
         /**
          * Rebalance
