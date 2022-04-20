@@ -375,7 +375,6 @@ class Bot {
         console.log(`Investing at [${CONFIG.SCHEDULE.INVESTING}] with ${CONFIG.INVESTMENT} ${CONFIG.QUOTE} ...`);
         console.log(`Rebalancing at [${CONFIG.SCHEDULE.REBALANCE}] with threshold of ${CONFIG.THRESHOLD}% ...`);
         console.log(``);
-        this._queue.push("REBALANCE");
     }
 }
 
