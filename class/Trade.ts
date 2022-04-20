@@ -201,7 +201,7 @@ export class Trade {
         if (!balance || !book || balance.length === 0 || book.length === 0) {
             console.error("Account balance or order book are empty");
 
-            return;
+            return false;
         }
 
         /**
@@ -213,7 +213,7 @@ export class Trade {
          * If the portfolio worth is zero, there is nothing to rebalance and we can abort.
          */
         if (portfolioWorth === 0) {
-            return;
+            return false;
         }
 
         /**
@@ -280,7 +280,7 @@ export class Trade {
         await this.setCoinRemovalList(coinRemovalList);
 
         if (!shouldContinue) {
-            return;
+            return false;
         }
 
         /**
@@ -372,7 +372,7 @@ export class Trade {
         if (!balance || balance.length === 0) {
             console.error("Account balance is empty");
 
-            return;
+            return false;
         }
 
         const availableFunds = this.Calculation.getAvailableFunds(balance);
@@ -1069,13 +1069,22 @@ export class Trade {
          * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
          * not stablecoins.
          */
-        const coinRemovalList = await this.getCoinRemovalList();
-        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
+        let coinRemovalList = await this.getCoinRemovalList();
+        let tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
 
         /**
          * Rebalance
          */
         const marketCapRebalanced = await this.rebalanceMarketCaps(instruments, tradableCoins, tradableCoinsWithoutRemovalList);
+
+        if (marketCapRebalanced) {
+            /**
+         * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
+         * not stablecoins.
+         */
+            coinRemovalList = await this.getCoinRemovalList();
+            tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
+        }
 
         /**
          * Rebalance
