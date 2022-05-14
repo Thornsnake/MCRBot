@@ -1090,12 +1090,12 @@ export class Trade {
          * Rebalance
          */
         const overperformersRebalanced = await this.rebalanceOverperformers(instruments, tradableCoins);
-        const underperformersRebalanced = await this.rebalanceUnderperformers(instruments, tradableCoins);
+        //const underperformersRebalanced = await this.rebalanceUnderperformers(instruments, tradableCoins);
 
         /**
          * Write that the bot had nothing to do if that is the case.
          */
-        if (!marketCapRebalanced && !overperformersRebalanced && !underperformersRebalanced) {
+        if (!marketCapRebalanced && !overperformersRebalanced/* && !underperformersRebalanced*/) {
             if (CONFIG["IDLE_MESSAGE"]) {
                 console.log(CONFIG["IDLE_MESSAGE"]);
             }
