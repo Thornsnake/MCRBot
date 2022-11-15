@@ -152,12 +152,18 @@ export class Calculation {
         const deviations: IDistributionDelta[] = [];
 
         for (const tradableCoin of tradableCoins) {
-            const coin = balance.find((row) => {
+            let coin = balance.find((row) => {
                 return row.currency.toUpperCase() === tradableCoin;
             });
 
             if (!coin) {
-                continue;
+                coin = {
+                    currency: tradableCoin,
+                    balance: 0,
+                    available: 0,
+                    order: 0,
+                    stake: 0
+                };
             }
 
             const orderBook = book.find((row) => {

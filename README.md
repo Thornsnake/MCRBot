@@ -35,7 +35,7 @@ To configure the bot, open the `config.ts` file with your favorite file editor a
 | SCHEDULE > TRAILING_STOP   | string   | The interval for the trailing stop check in cron format. Defaults to `every minute at the 30 second mark`.
 | SCHEDULE > INVESTING       | string   | The interval for the DCA investing in cron format. Defaults to `every day, 3 minutes after midnight`.
 | SCHEDULE > REBALANCE       | string   | The interval for the portfolio rebalancing in cron format. Defaults to `every 5 minutes`.
-| QUOTE                      | string   | The quote currency used on the exchange. Can be `USD_STABLE_COIN` or `BTC`.
+| QUOTE                      | string   | The quote currency used on the exchange. Can be `USD` or `BTC`.
 | INVESTMENT                 | number   | The amount of quote currency invested during each investment interval. This will be split over all coins.
 | TOP                        | number   | The top X coins by market cap to invest into and rebalance. Set this to `0` if you want to manually manage all coins.
 | REMOVAL                    | number   | The number of hours the bot should wait before selling a coin that has fallen out of the top x coins by market cap.

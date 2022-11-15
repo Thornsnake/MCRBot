@@ -108,8 +108,8 @@ class Bot {
         /**
          * Make sure the quote currency is valid.
          */
-        if (!["USD_STABLE_COIN", "BTC"].includes(CONFIG.QUOTE.toUpperCase())) {
-            console.log("The currency for the QUOTE option is not valid! Choose 'USD_STABLE_COIN' or 'BTC'!");
+        if (!["USD", "BTC"].includes(CONFIG.QUOTE.toUpperCase())) {
+            console.log("The currency for the QUOTE option is not valid! Choose 'USD' or 'BTC'!");
             return false;
         }
 
