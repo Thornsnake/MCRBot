@@ -241,9 +241,6 @@ class Bot {
             return;
         }
 
-        this._queue.push("REBALANCE");
-        return;
-
         /**
          * Define exit events to cleanly shut down the bot.
          */
