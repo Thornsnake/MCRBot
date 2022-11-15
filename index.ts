@@ -108,8 +108,8 @@ class Bot {
         /**
          * Make sure the quote currency is valid.
          */
-        if (!["USD", "BTC"].includes(CONFIG.QUOTE.toUpperCase())) {
-            console.log("The currency for the QUOTE option is not valid! Choose 'USD' or 'BTC'!");
+        if (!["USD_STABLE_COIN", "BTC"].includes(CONFIG.QUOTE.toUpperCase())) {
+            console.log("The currency for the QUOTE option is not valid! Choose 'USD_STABLE_COIN' or 'BTC'!");
             return false;
         }
 
@@ -240,6 +240,9 @@ class Bot {
         if (!configurationValid) {
             return;
         }
+
+        this._queue.push("REBALANCE");
+        return;
 
         /**
          * Define exit events to cleanly shut down the bot.
