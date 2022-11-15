@@ -44,6 +44,15 @@ export class Account {
                     nonce: Date.now()
                 }), {timeout: 30000});
 
+            const accounts: IAccount[] = [];
+
+            for (const account of <IAccount[]>response.data.result.accounts) {
+                accounts.push({
+                    ...account,
+                    currency: account.currency.toUpperCase() === "USD_STABLE_COIN" ? "USD" : account.currency
+                });
+            }
+
             return response.data.result.accounts;
         }
         catch(err) {
