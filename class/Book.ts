@@ -10,7 +10,7 @@ export class Book {
             const bookPromises: Promise<AxiosResponse>[] = [];
 
             for (const coin of tradableCoins) {
-                bookPromises.push(axios.get(`https://api.crypto.com/v2/public/get-book?instrument_name=${coin}_${CONFIG.QUOTE}&depth=150`, {timeout: 30000}));
+                bookPromises.push(axios.get(`https://api.crypto.com/v2/public/get-book?instrument_name=${coin}_${CONFIG.QUOTE}&depth=50`, {timeout: 30000}));
             }
 
             const bookResponses = await Promise.all(bookPromises);

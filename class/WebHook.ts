@@ -65,7 +65,7 @@ class WebHook {
     }
 
     private formatCurrency(value: number) {
-        const fractionDigits = CONFIG.QUOTE === "USDC" || CONFIG.QUOTE === "USDT" ? 2 : CONFIG.QUOTE === "BTC" ? 6 : 5;
+        const fractionDigits = CONFIG.QUOTE === "USD" ? 2 : CONFIG.QUOTE === "BTC" ? 6 : 5;
         const fixedValue = value.toFixed(fractionDigits);
     
         const leftSide = fixedValue.split(".")[0];

@@ -4,6 +4,7 @@ import { CONFIG } from "./config.js";
 import cronValidator from "cron-validator";
 import Queue from "better-queue";
 import { spawn } from "child_process";
+import { Instrument } from "./class/Instrument.js";
 
 class Bot {
     private _trade: Trade;
@@ -107,8 +108,8 @@ class Bot {
         /**
          * Make sure the quote currency is valid.
          */
-        if (!["USDT", "USDC", "BTC", "CRO"].includes(CONFIG.QUOTE.toUpperCase())) {
-            console.log("The currency for the QUOTE option is not valid! Choose 'USDT', 'USDC', 'BTC' or 'CRO'!");
+        if (!["USD", "BTC"].includes(CONFIG.QUOTE.toUpperCase())) {
+            console.log("The currency for the QUOTE option is not valid! Choose 'USD' or 'BTC'!");
             return false;
         }
 

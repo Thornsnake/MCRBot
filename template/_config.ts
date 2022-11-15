@@ -19,21 +19,21 @@ export const CONFIG = {
     },
 
     /**
-     * The quote currency of your exchange pairs. Can be "USDT", "USDC", "BTC" or "CRO". Please
-     * take in mind that if you set the quote currency to "BTC" or "CRO", the INVESTMENT option
+     * The quote currency of your exchange pairs. Can be "USD" or "BTC". Please
+     * take in mind that if you set the quote currency to "BTC", the INVESTMENT option
      * must also be set in that currency.
      * 
-     * 25 USDT/USDC at time of writing this would be about 0.0008 BTC or 230 CRO.
+     * 25 USD at time of writing this would be about 0.0008 BTC.
      */
-    QUOTE: "USDT",
+    QUOTE: "USD",
 
     /**
      * The amount of quote currency that you want to invest per investing interval. The investing
      * interval is the cronjob interval you've set for the SCHEDULE->INVESTING option. Every time a new
      * investment is made, this amount will be split over all coins within the market cap.
      * 
-     * If there are 50 coins within the market cap with the INVESTMENT option set to 25 USDT, the
-     * used amount that will be invested into each coin will be 25/50, so 0.5 USDT.
+     * If there are 50 coins within the market cap with the INVESTMENT option set to 25 USD, the
+     * used amount that will be invested into each coin will be 25/50, so 0.5 USD.
      * 
      * WARNING!
      * If you set this amount too low and have too many coins to trade on, the investment amount per
@@ -74,7 +74,7 @@ export const CONFIG = {
      * Coins that should be excluded from investing and rebalancing, even if they are within the set
      * market cap limit.
      */
-    EXCLUDE: ["DOGE", "SHIB"],
+    EXCLUDE: [],
 
     /**
      * The maximum deviation in percent that a coin can have before rebalancing kicks in. This works in
@@ -102,7 +102,7 @@ export const CONFIG = {
      * You can not include the quote currency here!
      */
     WEIGHT: {
-        //"USDC": 10,
+        //"USD": 10,
         //"BTC": 10
     },
 
