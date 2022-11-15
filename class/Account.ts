@@ -53,7 +53,7 @@ export class Account {
                 });
             }
 
-            return response.data.result.accounts;
+            return accounts;
         }
         catch(err) {
             console.error(err);
