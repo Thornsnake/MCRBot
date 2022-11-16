@@ -4,8 +4,6 @@ import { CONFIG } from "./config.js";
 import cronValidator from "cron-validator";
 import Queue from "better-queue";
 import { spawn } from "child_process";
-import { Instrument } from "./class/Instrument.js";
-import { EMessageDataRebalanceCoinDirection, EMessageType, WebHook } from "./class/WebHook.js";
 
 class Bot {
     private _trade: Trade;
