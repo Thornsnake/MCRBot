@@ -135,8 +135,7 @@ export class Trade {
                         instrument_name: instrument.instrument_name,
                         side: "BUY",
                         type: "MARKET",
-                        notional: notional,
-                        client_oid: `mcrbot_${tradeType}`
+                        notional: notional
                     },
                     nonce: Date.now()
                 }), { timeout: 30000 });
@@ -167,8 +166,7 @@ export class Trade {
                         instrument_name: instrument.instrument_name,
                         side: "SELL",
                         type: "MARKET",
-                        quantity: quantity,
-                        client_oid: `mcrbot_${tradeType}`
+                        quantity: quantity
                     },
                     nonce: Date.now()
                 }), { timeout: 30000 });
