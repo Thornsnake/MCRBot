@@ -15,15 +15,17 @@ export class Account {
 
     public async get(currency: string): Promise<IAccount | undefined> {
         try {
+            const nonce = Date.now();
+
             const response = await axios.post(
                 "https://api.crypto.com/v2/private/get-account-summary",
                 this.Authentication.sign({
-                    id: 1,
+                    id: nonce,
                     method: "private/get-account-summary",
                     params: {
                         currency: currency.toUpperCase()
                     },
-                    nonce: Date.now()
+                    nonce: nonce
                 }), {timeout: 30000});
 
             return response.data.result.accounts[0];
@@ -35,13 +37,15 @@ export class Account {
 
     public async all(): Promise<IAccount[] | null> {
         try {
+            const nonce = Date.now();
+
             const response = await axios.post(
                 "https://api.crypto.com/v2/private/get-account-summary",
                 this.Authentication.sign({
-                    id: 1,
+                    id: nonce,
                     method: "private/get-account-summary",
                     params: {},
-                    nonce: Date.now()
+                    nonce: nonce
                 }), {timeout: 30000});
 
             const accounts: IAccount[] = [];

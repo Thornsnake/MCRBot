@@ -126,18 +126,21 @@ export class Trade {
         }
 
         try {
+            const nonce = Date.now();
+
             await axios.post(
                 "https://api.crypto.com/v2/private/create-order",
                 this.Authentication.sign({
-                    id: 2,
+                    id: nonce,
                     method: "private/create-order",
                     params: {
                         instrument_name: instrument.instrument_name,
                         side: "BUY",
                         type: "MARKET",
-                        notional: notional
+                        notional: notional,
+                        client_oid: `buy-${tradeType}-${Date.now()}`
                     },
-                    nonce: Date.now()
+                    nonce: nonce
                 }), { timeout: 30000 });
 
             return true;
@@ -157,18 +160,21 @@ export class Trade {
         }
 
         try {
+            const nonce = Date.now();
+
             await axios.post(
                 "https://api.crypto.com/v2/private/create-order",
                 this.Authentication.sign({
-                    id: 3,
+                    id: nonce,
                     method: "private/create-order",
                     params: {
                         instrument_name: instrument.instrument_name,
                         side: "SELL",
                         type: "MARKET",
-                        quantity: quantity
+                        quantity: quantity,
+                        client_oid: `sell-${tradeType}-${Date.now()}`
                     },
-                    nonce: Date.now()
+                    nonce: nonce
                 }), { timeout: 30000 });
 
             return true;
