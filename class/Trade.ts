@@ -125,6 +125,20 @@ export class Trade {
             return true;
         }
 
+        // Sanity checks
+        const priceTickSize = parseFloat(instrument.price_tick_size);
+        const minPrice = parseFloat(instrument.min_price);
+        const minQuantity = parseFloat(instrument.min_quantity);
+
+        if (notional % priceTickSize !== 0) {
+            notional = Math.floor(notional / priceTickSize) * priceTickSize;
+        }
+
+        if (notional < minPrice * minQuantity) {
+            return false;
+        }
+
+        // Buy
         try {
             const nonce = Date.now();
 
@@ -159,6 +173,19 @@ export class Trade {
             return true;
         }
 
+        // Sanity checks
+        const quantityTickSize = parseFloat(instrument.quantity_tick_size);
+        const minQuantity = parseFloat(instrument.min_quantity);
+
+        if (quantity % quantityTickSize !== 0) {
+            quantity = Math.floor(quantity / quantityTickSize) * quantityTickSize;
+        }
+
+        if (quantity < minQuantity) {
+            return false;
+        }
+
+        // Sell
         try {
             const nonce = Date.now();
 
