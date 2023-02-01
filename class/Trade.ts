@@ -138,6 +138,8 @@ export class Trade {
             return false;
         }
 
+        notional = parseFloat(notional.toFixed(instrument.price_decimals));
+
         // Buy
         try {
             const nonce = Date.now();
@@ -184,6 +186,8 @@ export class Trade {
         if (quantity < minQuantity) {
             return false;
         }
+
+        quantity = parseFloat(quantity.toFixed(instrument.quantity_decimals));
 
         // Sell
         try {
