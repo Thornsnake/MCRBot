@@ -167,6 +167,12 @@ class Bot {
          * Make sure all weights are larger than 0.
          */
         for (const weight of Object.values(CONFIG.WEIGHT)) {
+            // Make sure the object value is a number.
+            if (typeof weight !== "number") {
+                console.log("All weights defined in the WEIGHT option must be a number!");
+                return false;
+            }
+
             if (weight <= 0) {
                 console.log("All weights defined in the WEIGHT option must be larger than 0%!");
                 return false;
