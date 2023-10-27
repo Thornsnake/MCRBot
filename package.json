@@ -17,7 +17,7 @@
     "better-queue": "^3.8.10",
     "cron": "^1.8.2",
     "cron-validator": "^1.2.1",
-    "crypto-js": "^4.0.0",
+    "crypto-js": "^4.2.0",
     "discord-webhook-node": "^1.1.8",
     "typescript": "^4.3.5"
   },
