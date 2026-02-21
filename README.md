@@ -1,4 +1,10 @@
 # MCRBot
+
+> [!WARNING]
+> **⚠️ THIS PROJECT IS OBSOLETE AND NO LONGER MAINTAINED ⚠️**
+>
+> This code is very out of date and will likely **not work**. It was built against an older version of the crypto.com exchange API which has since changed significantly. Use this project at your own risk — it is provided here for reference purposes only and is no longer actively developed or supported.
+
 **This bot has both a DCA feature (Dollar Cost Averaging) and will also keep your portfolio balanced automatically. The coins in your portfolio can be either chosen manually, or automatically by market cap ranking. It is also supporting Webhooks for Discord.**
 
 ## Requirements
