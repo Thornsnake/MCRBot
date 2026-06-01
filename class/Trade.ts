@@ -7,13 +7,15 @@ import { Account } from "./Account.js";
 import { Calculation } from "./Calculation.js";
 import { CONFIG } from "../config.js";
 import { ICoinRemoval } from "../interface/ICoinRemoval.js";
-import { Disk } from "./Disk.js";
+import { Database } from "./Database.js";
 import { IPortfolioATH } from "../interface/IPortfolioATH.js";
 import { IAccount } from "../interface/IAccount.js";
 import { EMessageDataRebalanceCoinDirection, EMessageType, IMessageDataInvest, IMessageDataRebalance, WebHook } from "./WebHook.js";
 import { Book } from "./Book.js";
 import { IBook } from "../interface/IBook.js";
 import { toPlainString } from "./Util.js";
+import { ITradeRecord, ICycleSnapshot } from "../interface/IDashboard.js";
+import { IDistributionDelta } from "../interface/IDistributionDelta.js";
 
 enum ETradeType {
     INVEST = "invest",
@@ -28,7 +30,16 @@ export class Trade {
     private _account: Account;
     private _book: Book;
     private _calculation: Calculation;
-    private _disk: Disk;
+
+    // Optional dashboard listeners (set by the GUI server). When unset, the bot runs untouched.
+    private _onTrade?: (record: ITradeRecord) => void;
+    private _onCycle?: (snapshot: ICycleSnapshot) => void;
+
+    // Last computed values during a cycle, stashed so a cycle snapshot can be emitted without
+    // additional API calls.
+    private _lastPortfolioWorth: number = 0;
+    private _lastAvailableFunds: number = 0;
+    private _lastDistribution: IDistributionDelta[] = [];
 
     constructor() {
         this._authentication = new Authentication();
@@ -37,7 +48,6 @@ export class Trade {
         this._account = new Account();
         this._book = new Book();
         this._calculation = new Calculation;
-        this._disk = new Disk();
     }
 
     private get Authentication() {
@@ -48,7 +58,7 @@ export class Trade {
         return this._instrument;
     }
 
-    private get Coingecko() {
+    public get Coingecko() {
         return this._coinGecko;
     }
 
@@ -60,46 +70,73 @@ export class Trade {
         return this._book;
     }
 
-    private get Calculation() {
+    public get Calculation() {
         return this._calculation;
     }
 
-    private get Disk() {
-        return this._disk;
+    /**
+     * Registers the dashboard listeners. Called by the GUI server at startup; absent when the
+     * dashboard is disabled, in which case the bot behaves exactly as the headless version.
+     */
+    public setListeners(onTrade: (record: ITradeRecord) => void, onCycle: (snapshot: ICycleSnapshot) => void) {
+        this._onTrade = onTrade;
+        this._onCycle = onCycle;
+    }
+
+    private emitTrade(record: ITradeRecord) {
+        try {
+            this._onTrade?.(record);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+
+    private async emitCycle(type: string) {
+        if (!this._onCycle) {
+            return;
+        }
+
+        try {
+            this._onCycle({
+                type,
+                timestamp: Date.now(),
+                portfolioWorth: this._lastPortfolioWorth,
+                availableFunds: this._lastAvailableFunds,
+                distribution: this._lastDistribution,
+                trailingStop: await this.getPortfolioATH(),
+                removalList: await this.getCoinRemovalList()
+            });
+        }
+        catch (err) {
+            console.error(err);
+        }
     }
 
     private async getCoinRemovalList(): Promise<ICoinRemoval[]> {
-        const fileExists = await this.Disk.exists("./data/CoinRemovalList.json");
-
-        if (fileExists) {
-            const data = await this.Disk.load("./data/CoinRemovalList.json");
-
-            return JSON.parse(data);
-        }
-        else {
-            return [];
-        }
+        const rows = Database.all(`SELECT "coin", "execute" FROM "CoinRemovalList"`) as ICoinRemoval[];
+        return rows ?? [];
     }
 
     private async setCoinRemovalList(coinRemovalList: ICoinRemoval[]) {
-        const directoryExists = await this.Disk.exists("./data");
-
-        if (!directoryExists) {
-            await this.Disk.createDirectory("./data", false);
-        }
-
-        await this.Disk.save("./data/CoinRemovalList.json", JSON.stringify(coinRemovalList));
+        Database.transaction(() => {
+            Database.execute(`DELETE FROM "CoinRemovalList"`);
+            for (const entry of coinRemovalList) {
+                Database.execute(
+                    `INSERT INTO "CoinRemovalList" ("coin", "execute") VALUES (?, ?)
+                     ON CONFLICT ("coin") DO UPDATE SET "execute" = excluded."execute"`,
+                    [entry.coin, entry.execute]
+                );
+            }
+        });
     }
 
     private async getPortfolioATH(): Promise<IPortfolioATH> {
-        const fileExists = await this.Disk.exists("./data/PortfolioATH.json");
+        const row = Database.get(
+            `SELECT "investment", "all_time_high", "active", "triggered", "resume" FROM "PortfolioATH" WHERE "id" = 1`
+        ) as { investment: number; all_time_high: number; active: number; triggered: number; resume: number } | undefined;
 
-        if (fileExists) {
-            const data = await this.Disk.load("./data/PortfolioATH.json");
-
-            return JSON.parse(data);
-        }
-        else {
+        if (!row) {
             return {
                 active: false,
                 allTimeHigh: 0,
@@ -108,22 +145,51 @@ export class Trade {
                 triggered: false
             };
         }
+
+        return {
+            investment: row.investment,
+            allTimeHigh: row.all_time_high,
+            active: !!row.active,
+            triggered: !!row.triggered,
+            resume: row.resume
+        };
     }
 
     private async setPortfolioATH(portfolioATH: IPortfolioATH) {
-        const directoryExists = await this.Disk.exists("./data");
-
-        if (!directoryExists) {
-            await this.Disk.createDirectory("./data", false);
-        }
-
-        await this.Disk.save("./data/PortfolioATH.json", JSON.stringify(portfolioATH));
+        Database.execute(
+            `INSERT INTO "PortfolioATH" ("id", "investment", "all_time_high", "active", "triggered", "resume")
+             VALUES (1, ?, ?, ?, ?, ?)
+             ON CONFLICT ("id") DO UPDATE SET
+                "investment" = excluded."investment",
+                "all_time_high" = excluded."all_time_high",
+                "active" = excluded."active",
+                "triggered" = excluded."triggered",
+                "resume" = excluded."resume"`,
+            [
+                portfolioATH.investment,
+                portfolioATH.allTimeHigh,
+                portfolioATH.active ? 1 : 0,
+                portfolioATH.triggered ? 1 : 0,
+                portfolioATH.resume
+            ]
+        );
     }
 
     private async buy(instrument: IInstrument, notional: number, minimumNotional: number, tradeType: ETradeType): Promise<boolean> {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         if (CONFIG.DRY) {
+            this.emitTrade({
+                coin: instrument.base_currency.toUpperCase(),
+                side: "BUY",
+                type: tradeType,
+                quoteAmount: notional,
+                baseQuantity: null,
+                price: null,
+                timestamp: Date.now(),
+                dry: true
+            });
+
             return true;
         }
 
@@ -161,6 +227,17 @@ export class Trade {
                     nonce: nonce
                 }), { timeout: 30000, headers: { "Content-Type": "application/json" } });
 
+            this.emitTrade({
+                coin: instrument.base_currency.toUpperCase(),
+                side: "BUY",
+                type: tradeType,
+                quoteAmount: notional,
+                baseQuantity: null,
+                price: null,
+                timestamp: Date.now(),
+                dry: false
+            });
+
             return true;
         }
         catch (err) {
@@ -170,10 +247,21 @@ export class Trade {
         }
     }
 
-    private async sell(instrument: IInstrument, quantity: number, tradeType: ETradeType) {
+    private async sell(instrument: IInstrument, quantity: number, tradeType: ETradeType, quoteWorth?: number) {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         if (CONFIG.DRY) {
+            this.emitTrade({
+                coin: instrument.base_currency.toUpperCase(),
+                side: "SELL",
+                type: tradeType,
+                quoteAmount: quoteWorth ?? 0,
+                baseQuantity: quantity,
+                price: null,
+                timestamp: Date.now(),
+                dry: true
+            });
+
             return true;
         }
 
@@ -210,6 +298,17 @@ export class Trade {
                     },
                     nonce: nonce
                 }), { timeout: 30000, headers: { "Content-Type": "application/json" } });
+
+            this.emitTrade({
+                coin: instrument.base_currency.toUpperCase(),
+                side: "SELL",
+                type: tradeType,
+                quoteAmount: quoteWorth ?? 0,
+                baseQuantity: quantity,
+                price: null,
+                timestamp: Date.now(),
+                dry: false
+            });
 
             return true;
         }
@@ -446,7 +545,7 @@ export class Trade {
                     console.log(`[CHECK] ${coinBalance.currency.toUpperCase()} should not be in the portfolio`);
                     hadWorkToDo = true;
 
-                    const sold = await this.sell(instrument, quantity, ETradeType.REBALANCE);
+                    const sold = await this.sell(instrument, quantity, ETradeType.REBALANCE, this.Calculation.getOrderBookBidWorth(quantity, orderBook));
 
                     if (sold) {
                         soldCoinWorth += this.Calculation.getOrderBookBidWorth(quantity, orderBook);
@@ -602,6 +701,10 @@ export class Trade {
          */
         const distributionDelta = this.Calculation.getDistributionDelta(portfolioWorth, tradableCoins, balance, book);
 
+        // Stash the latest figures so a cycle snapshot can be emitted to the dashboard.
+        this._lastPortfolioWorth = portfolioWorth;
+        this._lastDistribution = distributionDelta;
+
         for (const coin of distributionDelta) {
             if (coin.percentage >= CONFIG.THRESHOLD) {
                 console.log(`[CHECK] ${coin.name} deviates ${coin.deviation} ${CONFIG.QUOTE} (${coin.percentage.toFixed(2)}%) -> [OVERPERFORMING]`);
@@ -666,7 +769,7 @@ export class Trade {
                 continue;
             }
 
-            const sold = await this.sell(instrument, quantity, ETradeType.REBALANCE);
+            const sold = await this.sell(instrument, quantity, ETradeType.REBALANCE, coin.deviation);
 
             if (sold) {
                 soldCoinWorth += coin.deviation;
@@ -935,6 +1038,10 @@ export class Trade {
          */
         const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, book);
 
+        // Stash the latest figures so a cycle snapshot can be emitted to the dashboard.
+        this._lastPortfolioWorth = portfolioWorth;
+        this._lastAvailableFunds = availableFunds;
+
         /**
          * Create information for the webhook message.
          */
@@ -1024,6 +1131,8 @@ export class Trade {
                 console.log(CONFIG["IDLE_MESSAGE"]);
             }
         }
+
+        await this.emitCycle("rebalance");
     }
 
     public async invest() {
@@ -1073,6 +1182,52 @@ export class Trade {
          * Invest
          */
         await this.investMoney(instruments, tradableCoins, buyableCoins);
+
+        await this.emitCycle("invest");
+    }
+
+    /**
+     * Computes a read-only snapshot of the current portfolio (worth, available funds, per-coin
+     * distribution, trailing-stop state, removal list) for the dashboard's live poller. It only
+     * issues read-only API calls and never touches the trading queue, so it can run independently of
+     * the trading cycles.
+     */
+    public async snapshot(): Promise<ICycleSnapshot | null> {
+        const instruments = await this.Instrument.all();
+        const stablecoins = await this.Coingecko.getStablecoins(true);
+        const coins = await this.Coingecko.getCoins(true);
+
+        if (!instruments || !stablecoins || !coins) {
+            return null;
+        }
+
+        const coinRemovalList = await this.getCoinRemovalList();
+        const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
+
+        const balance = await this.Account.all();
+        const book = await this.Book.all(tradableCoins);
+
+        if (!balance || !book) {
+            return null;
+        }
+
+        const portfolioWorth = this.Calculation.getPortfolioWorth(balance, tradableCoins, book);
+        const distribution = this.Calculation.getDistributionDelta(portfolioWorth, tradableCoins, balance, book);
+        const availableFunds = this.Calculation.getAvailableFunds(balance);
+
+        this._lastPortfolioWorth = portfolioWorth;
+        this._lastAvailableFunds = availableFunds;
+        this._lastDistribution = distribution;
+
+        return {
+            type: "poll",
+            timestamp: Date.now(),
+            portfolioWorth,
+            availableFunds,
+            distribution,
+            trailingStop: await this.getPortfolioATH(),
+            removalList: coinRemovalList
+        };
     }
 
     public async stop() {
@@ -1237,7 +1392,7 @@ export class Trade {
                             continue;
                         }
 
-                        const sold = await this.sell(instrument, quantity, ETradeType.TRAILING_STOP);
+                        const sold = await this.sell(instrument, quantity, ETradeType.TRAILING_STOP, this.Calculation.getOrderBookBidWorth(quantity, orderBook));
 
                         if (sold) {
                             console.log(`[SELL] ${coin.currency.toUpperCase()} for ${(this.Calculation.getOrderBookBidWorth(quantity, orderBook))} ${CONFIG.QUOTE}`);

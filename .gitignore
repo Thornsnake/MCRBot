@@ -1,5 +1,9 @@
 node_modules
 data
-config.*
 *.js
 *.js.map
+bot.name
+gui/node_modules
+gui/dist
+gui/*.tsbuildinfo
+class/gui/public

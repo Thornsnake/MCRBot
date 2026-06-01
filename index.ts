@@ -4,6 +4,8 @@ import { CONFIG } from "./config.js";
 import cronValidator from "cron-validator";
 import Queue from "better-queue";
 import { spawn } from "child_process";
+import { Database } from "./class/Database.js";
+import { GUIServer } from "./class/gui/GUIServer.js";
 
 /**
  * Global safety nets. A stray rejected promise (e.g. a transient webhook or network failure) would
@@ -33,9 +35,11 @@ class Bot {
     private _investingRunning: boolean;
     private _rebalancingRunning: boolean;
     private _autoUpdateRunning: boolean;
+    private _schedulesStarted: boolean;
 
     constructor() {
         this._trade = new Trade();
+        this._schedulesStarted = false;
 
         this._trailingStopSchedule = null;
         this._investingSchedule = null;
@@ -273,11 +277,8 @@ class Bot {
     }
 
     async run() {
-        const configurationValid = await this.check();
-
-        if (!configurationValid) {
-            return;
-        }
+        // Open the database (the config was already loaded from it at import time).
+        Database.open();
 
         /**
          * Define exit events to cleanly shut down the bot.
@@ -289,20 +290,20 @@ class Bot {
                 console.log(`Shutting down`);
                 console.log(``);
 
-                if (this._trailingStopSchedule) {
-                    this._trailingStopSchedule.stop();
+                this.stopSchedules();
+
+                try {
+                    GUIServer.stop();
+                }
+                catch (err) {
+                    console.error(err);
                 }
 
-                if (this._investingSchedule) {
-                    this._investingSchedule.stop();
+                try {
+                    Database.close();
                 }
-
-                if (this._rebalancingSchedule) {
-                    this._rebalancingSchedule.stop();
-                }
-
-                if (this._autoUpdateSchedule) {
-                    this._autoUpdateSchedule.stop();
+                catch (err) {
+                    console.error(err);
                 }
 
                 /**
@@ -315,105 +316,116 @@ class Bot {
         }
 
         /**
-         * Initiates the trailing stop schedule.
+         * Start the dashboard before trading, so it is reachable immediately — even when the
+         * configuration is still incomplete (e.g. no API keys yet). The bot keeps running if the
+         * dashboard fails to start.
          */
-        this._trailingStopSchedule = new CronJob(CONFIG.SCHEDULE.TRAILING_STOP, () => {
-            if (this._autoUpdateRunning) {
-                return;
+        if (CONFIG.GUI.ACTIVE) {
+            try {
+                await GUIServer.start({
+                    trade: this._trade,
+                    onReconfigure: (changedKeys) => this.reconfigure(changedKeys)
+                });
             }
-
-            this._queue.push("TRAILING_STOP");
-        });
-
-        /**
-         * Initiates the investing schedule.
-         */
-        this._investingSchedule = new CronJob(CONFIG.SCHEDULE.INVESTING, () => {
-            if (this._autoUpdateRunning) {
-                return;
+            catch (err) {
+                console.error(`[GUI] Failed to start dashboard:`, err);
             }
-
-            this._queue.push("INVEST");
-        });
-
-        /**
-         * Initiates the rebalancing schedule.
-         */
-        this._rebalancingSchedule = new CronJob(CONFIG.SCHEDULE.REBALANCE, () => {
-            if (this._autoUpdateRunning) {
-                return;
-            }
-
-            this._queue.push("REBALANCE");
-        });
-
-        if (CONFIG["AUTO_UPDATE"]) {
-            /**
-             * Initiates the auto update schedule.
-             * 
-             * If you are reading this code, you should not mess with this cron schedule unless you
-             * know what you are doing.
-             */
-            this._autoUpdateSchedule = new CronJob("40 0 0 * * *", async () => {
-                /**
-                 * Wait for the process queue to be empty before starting the update process, so we do
-                 * not abort any running schedules. We will wait for a total of 10 minutes. If the
-                 * queue is still not empty at that time, the update will be aborted.
-                 */
-                try {
-                    this._autoUpdateRunning = true;
-
-                    console.log(`[UPDATE] Waiting for schedules to finish`);
-
-                    for (let i = 0; i < 600; i++) {
-                        if (this._trailingStopRunning || this._investingRunning || this._rebalancingRunning) {
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                        }
-                        else {
-                            /**
-                             * Start the update child process and detach it from the parent.
-                             */
-                            try {
-                                console.log(`[UPDATE] Checking for new updates`);
-
-                                const subprocess = spawn("sh", ["update.sh"], {
-                                    detached: true,
-                                    stdio: "ignore"
-                                });
-
-                                subprocess.unref();
-                            }
-                            catch (err) {
-                                console.error(err);
-                            }
-
-                            break;
-                        }
-                    }
-                }
-                catch (err) {
-                    console.error(err);
-                }
-                finally {
-                    this._autoUpdateRunning = false;
-                }
-            });
         }
 
         /**
-         * Starts all cron jobs.
+         * Validate the configuration. If it is valid, start trading. If not (e.g. the user has not
+         * entered their API keys yet), leave the dashboard up so they can finish the setup in the
+         * browser — trading then starts automatically via reconfigure(), without a restart.
          */
-        this._trailingStopSchedule.start();
-        this._investingSchedule.start();
-        this._rebalancingSchedule.start();
+        const configurationValid = await this.check();
 
-        if (CONFIG["AUTO_UPDATE"]) {
+        if (configurationValid) {
+            this.startSchedules();
+        }
+        else {
+            console.log("Trading is paused until the configuration is valid. Open the dashboard to finish setup.");
+        }
+    }
+
+    private createSchedule(name: "TRAILING_STOP" | "INVEST" | "REBALANCE"): CronJob {
+        const expression =
+            name === "TRAILING_STOP" ? CONFIG.SCHEDULE.TRAILING_STOP :
+            name === "INVEST" ? CONFIG.SCHEDULE.INVESTING :
+            CONFIG.SCHEDULE.REBALANCE;
+
+        const job = new CronJob(expression, () => {
+            if (this._autoUpdateRunning) {
+                return;
+            }
+
+            this._queue.push(name);
+        });
+
+        job.start();
+
+        return job;
+    }
+
+    private createAutoUpdateSchedule(): CronJob {
+        return new CronJob("40 0 0 * * *", async () => {
+            /**
+             * Wait for the process queue to be empty before starting the update process, so we do
+             * not abort any running schedules. We will wait for a total of 10 minutes. If the
+             * queue is still not empty at that time, the update will be aborted.
+             */
+            try {
+                this._autoUpdateRunning = true;
+
+                console.log(`[UPDATE] Waiting for schedules to finish`);
+
+                for (let i = 0; i < 600; i++) {
+                    if (this._trailingStopRunning || this._investingRunning || this._rebalancingRunning) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                    else {
+                        try {
+                            console.log(`[UPDATE] Checking for new updates`);
+
+                            const subprocess = spawn("sh", ["update.sh"], {
+                                detached: true,
+                                stdio: "ignore"
+                            });
+
+                            subprocess.unref();
+                        }
+                        catch (err) {
+                            console.error(err);
+                        }
+
+                        break;
+                    }
+                }
+            }
+            catch (err) {
+                console.error(err);
+            }
+            finally {
+                this._autoUpdateRunning = false;
+            }
+        });
+    }
+
+    private startSchedules() {
+        if (this._schedulesStarted) {
+            return;
+        }
+
+        this._trailingStopSchedule = this.createSchedule("TRAILING_STOP");
+        this._investingSchedule = this.createSchedule("INVEST");
+        this._rebalancingSchedule = this.createSchedule("REBALANCE");
+
+        if (CONFIG.AUTO_UPDATE) {
+            this._autoUpdateSchedule = this.createAutoUpdateSchedule();
             this._autoUpdateSchedule.start();
         }
 
-        /**
-         * Ready.
-         */
+        this._schedulesStarted = true;
+
         if (CONFIG.TRAILING_STOP.ACTIVE) {
             console.log(`Trailing Stop at [${CONFIG.SCHEDULE.TRAILING_STOP}] with ${CONFIG.TRAILING_STOP.MIN_PROFIT}% min profit and ${CONFIG.TRAILING_STOP.MAX_DROP}% max drop ...`);
         }
@@ -421,6 +433,41 @@ class Bot {
         console.log(`Investing at [${CONFIG.SCHEDULE.INVESTING}] with ${CONFIG.INVESTMENT} ${CONFIG.QUOTE} ...`);
         console.log(`Rebalancing at [${CONFIG.SCHEDULE.REBALANCE}] with threshold of ${CONFIG.THRESHOLD}% ...`);
         console.log(``);
+    }
+
+    private stopSchedules() {
+        this._trailingStopSchedule?.stop();
+        this._investingSchedule?.stop();
+        this._rebalancingSchedule?.stop();
+        this._autoUpdateSchedule?.stop();
+    }
+
+    /**
+     * Called by the web GUI after a configuration change. Recreates the cron jobs if their
+     * expressions changed, and starts trading if the configuration just became valid (first-run
+     * setup completed in the browser). All other settings are picked up live on the next tick.
+     */
+    public async reconfigure(changedKeys: string[]) {
+        if (changedKeys.includes("SCHEDULE") && this._schedulesStarted) {
+            this._trailingStopSchedule?.stop();
+            this._investingSchedule?.stop();
+            this._rebalancingSchedule?.stop();
+
+            this._trailingStopSchedule = this.createSchedule("TRAILING_STOP");
+            this._investingSchedule = this.createSchedule("INVEST");
+            this._rebalancingSchedule = this.createSchedule("REBALANCE");
+
+            console.log("[GUI] Trading schedules updated.");
+        }
+
+        if (!this._schedulesStarted) {
+            const valid = await this.check();
+
+            if (valid) {
+                this.startSchedules();
+                console.log("[GUI] Configuration is now valid — trading started.");
+            }
+        }
     }
 }
 

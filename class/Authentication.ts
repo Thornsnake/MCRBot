@@ -3,13 +3,7 @@ import { CONFIG } from "../config.js";
 import { toPlainString } from "./Util.js";
 
 export class Authentication {
-    private _apiKey: string;
-    private _apiSecret: string;
-
-    constructor() {
-        this._apiKey = CONFIG.APIKEY;
-        this._apiSecret = CONFIG.SECRET;
-    }
+    constructor() {}
 
     /**
      * Serializes a params value into the deterministic string the Crypto.com Exchange v1 signature
@@ -44,13 +38,18 @@ export class Authentication {
     }
 
     public sign(request: any) {
+        // Read the credentials from the live CONFIG at sign-time (not cached in the constructor), so
+        // that changing the API key/secret via the web GUI takes effect immediately, without a restart.
+        const apiKey = CONFIG.APIKEY;
+        const apiSecret = CONFIG.SECRET;
+
         const paramsString = request.params == null ? "" : this.objectToString(request.params);
 
-        const sigPayload = request.method + request.id + this._apiKey + paramsString + request.nonce;
+        const sigPayload = request.method + request.id + apiKey + paramsString + request.nonce;
 
-        request.api_key = this._apiKey;
+        request.api_key = apiKey;
         request.sig = crypto
-            .HmacSHA256(sigPayload, this._apiSecret)
+            .HmacSHA256(sigPayload, apiSecret)
             .toString(crypto.enc.Hex);
 
         return request;

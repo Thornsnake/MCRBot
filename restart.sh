@@ -4,6 +4,10 @@
 basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')");
 cd "$basedir";
 
+# Load nvm so the correct Node and globally installed tools (pm2) are on the PATH.
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}";
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && nvm use >/dev/null 2>&1;
+
 # Make sure the name file exists
 if [ ! -f "bot.name" ]
 then
