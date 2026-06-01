@@ -6,6 +6,16 @@ export const CONFIG = {
     SECRET: "xxxxxxxxxxxxxxxxxxxxxx",
 
     /**
+     * Optional CoinGecko Demo API key, used to look up the top coins by market cap.
+     *
+     * This is NOT required — the bot works without it using CoinGecko's free keyless API. However,
+     * the keyless API is rate limited and can occasionally fail. Adding a free Demo API key (create
+     * one at https://www.coingecko.com/en/api) raises the rate limit and improves reliability. Leave
+     * it empty to use the keyless API.
+     */
+    COINGECKO_API_KEY: "",
+
+    /**
      * Schedules in cron format.
      * Check https://crontab.guru/ if you want to double check your schedule.
      * 
@@ -19,11 +29,13 @@ export const CONFIG = {
     },
 
     /**
-     * The quote currency of your exchange pairs. Can be "USD" or "BTC". Please
-     * take in mind that if you set the quote currency to "BTC", the INVESTMENT option
+     * The quote currency of your exchange pairs. Can be "USD", "USDT", "BTC" or "EUR". Please
+     * take in mind that if you set the quote currency to e.g. "BTC", the INVESTMENT option
      * must also be set in that currency.
-     * 
-     * 25 USD at time of writing this would be about 0.0008 BTC.
+     *
+     * "USD" is recommended: on the Crypto.com Exchange it has by far the widest selection of
+     * trading pairs. "USDT" works too but covers fewer coins. 25 USD at time of writing this
+     * would be about 0.0008 BTC.
      */
     QUOTE: "USD",
 

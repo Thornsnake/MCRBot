@@ -33,31 +33,6 @@ export class Calculation {
         return currencyWorth;
     }
 
-    public getOrderBookAskWorth(coinAmmount: number, book: IBook) {
-        let currencyWorth = 0;
-        let currencyAmount = coinAmmount;
-
-        for (const ask of book.asks) {
-            const price = ask[0];
-            const quantity = ask[1];
-
-            if (quantity <= currencyAmount) {
-                currencyWorth += quantity * price;
-            }
-            else {
-                currencyWorth += currencyAmount * price;
-            }
-
-            currencyAmount -= quantity;
-
-            if (currencyAmount <= 0) {
-                break;
-            }
-        }
-
-        return currencyWorth;
-    }
-
     public getTradableCoins(instruments: IInstrument[], stablecoins: string[], coins: string[], coinRemovalList?: ICoinRemoval[]) {
         const tradableCoins: string[] = [];
 
@@ -174,28 +149,10 @@ export class Calculation {
                 continue;
             }
 
-            const reservedWeight = Object.entries(CONFIG.WEIGHT).reduce((acc: number, cur: [string, number]) => {
-                if (tradableCoins.includes(cur[0].toUpperCase())) {
-                    return acc + cur[1];
-                }
-                else {
-                    return acc;
-                }
-            }, 0);
-
-            const validReservedCoins = Object.entries(CONFIG.WEIGHT).reduce((acc, cur) => {
-                if (tradableCoins.includes(cur[0].toUpperCase())) {
-                    return acc + 1;
-                }
-                else {
-                    return acc;
-                }
-            }, 0);
-
-            const coinTarget = CONFIG.WEIGHT[tradableCoin] ? portfolioWorth * (CONFIG.WEIGHT[tradableCoin] / 100) : portfolioWorth * ((100 - reservedWeight) / 100) / (tradableCoins.length - validReservedCoins);
+            const coinTarget = this.weightedTarget(tradableCoins, tradableCoin, portfolioWorth);
             const deviation = (this.getOrderBookBidWorth(coin.available, orderBook)) - coinTarget;
 
-            const percentageDelta = (((deviation + coinTarget) / coinTarget) - 1) * 100;
+            const percentageDelta = coinTarget === 0 ? 0 : (((deviation + coinTarget) / coinTarget) - 1) * 100;
 
             deviations.push({
                 name: tradableCoin,
@@ -241,63 +198,6 @@ export class Calculation {
         return lowestPerformer;
     }
 
-    public getUnderperformerWorth(instruments: IInstrument[], book: IBook[], distributionDelta: IDistributionDelta[]) {
-        let underperformerWorth = 0;
-        let minimumBuyNotional = 0;
-
-        for (const coin of distributionDelta) {
-            if (coin.percentage <= 0 - CONFIG.THRESHOLD) {
-                const instrument = instruments.find((row) => {
-                    return row.base_currency.toUpperCase() === coin.name && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
-                });
-    
-                if (!instrument) {
-                    continue;
-                }
-    
-                const orderBook = book.find((row) => {
-                    return row.i === instrument.instrument_name;
-                });
-    
-                if (!orderBook) {
-                    continue;
-                }
-
-                const minimumNotional = this.fixNotional(instrument, this.minimumBuyNotional(instrument, orderBook));
-
-                underperformerWorth += Math.abs(coin.deviation);
-                minimumBuyNotional += minimumNotional;
-            }
-        }
-
-        if (underperformerWorth <= minimumBuyNotional * 1.1) {
-            underperformerWorth = 0;
-        }
-
-        return underperformerWorth;
-    }
-
-    public getHighestPerformer(distributionDelta: IDistributionDelta[], ignoreList: string[]) {
-        let highestPerformer: IDistributionDelta = null;
-
-        for (const coin of distributionDelta) {
-            if (ignoreList.includes(coin.name)) {
-                continue;
-            }
-
-            if (!highestPerformer) {
-                highestPerformer = coin;
-                continue;
-            }
-
-            if (coin.percentage > highestPerformer.percentage) {
-                highestPerformer = coin;
-            }
-        }
-
-        return highestPerformer;
-    }
-
     public fixNotional(instrument: IInstrument, notional: number) {
         return Math.floor(notional * Math.pow(10, instrument.price_decimals)) / Math.pow(10, instrument.price_decimals);
     }
@@ -317,25 +217,77 @@ export class Calculation {
         return (1 / Math.pow(10, instrument.quantity_decimals));
     }
 
-    public getCoinInvestmentTarget(tradableCoins: string[], coin: string): number {
+    /**
+     * Case-insensitive lookup of a coin's configured WEIGHT (in percent), or undefined if the coin
+     * has no explicit weight. WEIGHT keys in the config may be written in any case.
+     */
+    private getWeight(coin: string): number | undefined {
+        const upper = coin.toUpperCase();
+
+        for (const [key, value] of Object.entries(CONFIG.WEIGHT)) {
+            if (key.toUpperCase() === upper) {
+                return value as number;
+            }
+        }
+
+        return undefined;
+    }
+
+    /**
+     * Computes how much of `total` should be allocated to `coin` given the WEIGHT configuration and
+     * the set of `coins` currently in play. A coin with an explicit weight receives that exact
+     * percentage; the remaining percentage is split equally over all coins without an explicit
+     * weight. This is the single source of truth used for DCA investing, market-cap reinvesting and
+     * over-performer reinvesting, so weights are honoured consistently everywhere.
+     */
+    private weightedTarget(coins: string[], coin: string, total: number): number {
         const reservedWeight = Object.entries(CONFIG.WEIGHT).reduce((acc: number, cur: [string, number]) => {
-            if (tradableCoins.includes(cur[0])) {
-                return acc + cur[1];
-            }
-            else {
-                return acc;
-            }
+            return coins.includes(cur[0].toUpperCase()) ? acc + cur[1] : acc;
         }, 0);
 
-        const validReservedCoins = Object.entries(CONFIG.WEIGHT).reduce((acc, cur) => {
-            if (tradableCoins.includes(cur[0])) {
-                return acc + 1;
-            }
-            else {
-                return acc;
-            }
+        const validReservedCoins = Object.entries(CONFIG.WEIGHT).reduce((acc: number, cur) => {
+            return coins.includes(cur[0].toUpperCase()) ? acc + 1 : acc;
         }, 0);
 
-        return CONFIG.WEIGHT[coin] ? CONFIG.INVESTMENT * (CONFIG.WEIGHT[coin] / 100) : CONFIG.INVESTMENT * ((100 - reservedWeight) / 100) / (tradableCoins.length - validReservedCoins);
+        const weight = this.getWeight(coin);
+
+        if (weight !== undefined) {
+            return total * (weight / 100);
+        }
+
+        const unreservedCoins = coins.length - validReservedCoins;
+
+        if (unreservedCoins <= 0) {
+            return 0;
+        }
+
+        return total * ((100 - reservedWeight) / 100) / unreservedCoins;
+    }
+
+    /**
+     * The amount of fresh capital (CONFIG.INVESTMENT) that should be invested into a single coin
+     * during a DCA interval, respecting the WEIGHT configuration.
+     */
+    public getCoinInvestmentTarget(tradableCoins: string[], coin: string): number {
+        return this.weightedTarget(tradableCoins, coin, CONFIG.INVESTMENT);
+    }
+
+    /**
+     * The amount of an arbitrary sum (e.g. the proceeds of a sale during rebalancing) that should be
+     * reinvested into a single coin, respecting the WEIGHT configuration. Equal-split is simply the
+     * special case where no weights are configured.
+     */
+    public getReinvestTarget(buyableCoins: string[], coin: string, total: number): number {
+        return this.weightedTarget(buyableCoins, coin, total);
+    }
+
+    /**
+     * The new trailing-stop cost basis after a DCA interval. The basis only ever grows by at most
+     * CONFIG.INVESTMENT (the fresh capital the user intends to add each interval), so quote currency
+     * generated by rebalancing churn is not mis-counted as new money and does not inflate the basis
+     * (issue #24).
+     */
+    public cappedInvestment(previousInvestment: number, totalInvested: number): number {
+        return previousInvestment + Math.min(totalInvested, CONFIG.INVESTMENT);
     }
 }

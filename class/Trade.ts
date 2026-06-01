@@ -12,6 +12,8 @@ import { IPortfolioATH } from "../interface/IPortfolioATH.js";
 import { IAccount } from "../interface/IAccount.js";
 import { EMessageDataRebalanceCoinDirection, EMessageType, IMessageDataInvest, IMessageDataRebalance, WebHook } from "./WebHook.js";
 import { Book } from "./Book.js";
+import { IBook } from "../interface/IBook.js";
+import { toPlainString } from "./Util.js";
 
 enum ETradeType {
     INVEST = "invest",
@@ -118,23 +120,23 @@ export class Trade {
         await this.Disk.save("./data/PortfolioATH.json", JSON.stringify(portfolioATH));
     }
 
-    private async buy(instrument: IInstrument, notional: number, tradeType: ETradeType): Promise<boolean> {
+    private async buy(instrument: IInstrument, notional: number, minimumNotional: number, tradeType: ETradeType): Promise<boolean> {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         if (CONFIG.DRY) {
             return true;
         }
 
-        // Sanity checks
+        // Sanity checks. The v1 API no longer exposes min_price/min_quantity, so the minimum order
+        // value is derived from the order book by the caller (Calculation.minimumBuyNotional) and
+        // passed in as minimumNotional.
         const priceTickSize = parseFloat(instrument.price_tick_size);
-        const minPrice = parseFloat(instrument.min_price);
-        const minQuantity = parseFloat(instrument.min_quantity);
 
-        if (notional % priceTickSize !== 0) {
+        if (priceTickSize > 0 && notional % priceTickSize !== 0) {
             notional = Math.floor(notional / priceTickSize) * priceTickSize;
         }
 
-        if (notional < minPrice * minQuantity) {
+        if (notional < minimumNotional) {
             return false;
         }
 
@@ -145,7 +147,7 @@ export class Trade {
             const nonce = Date.now();
 
             await axios.post(
-                "https://api.crypto.com/v2/private/create-order",
+                "https://api.crypto.com/exchange/v1/private/create-order",
                 this.Authentication.sign({
                     id: nonce,
                     method: "private/create-order",
@@ -153,11 +155,11 @@ export class Trade {
                         instrument_name: instrument.instrument_name,
                         side: "BUY",
                         type: "MARKET",
-                        notional: notional,
+                        notional: toPlainString(notional),
                         client_oid: `buy-${tradeType}-${Date.now()}`
                     },
                     nonce: nonce
-                }), { timeout: 30000 });
+                }), { timeout: 30000, headers: { "Content-Type": "application/json" } });
 
             return true;
         }
@@ -175,11 +177,12 @@ export class Trade {
             return true;
         }
 
-        // Sanity checks
+        // Sanity checks. min_quantity no longer exists on the v1 API; the minimum sellable quantity
+        // is derived from the instrument's quantity decimals instead.
         const quantityTickSize = parseFloat(instrument.quantity_tick_size);
-        const minQuantity = parseFloat(instrument.min_quantity);
+        const minQuantity = this.Calculation.minimumSellQuantity(instrument);
 
-        if (quantity % quantityTickSize !== 0) {
+        if (quantityTickSize > 0 && quantity % quantityTickSize !== 0) {
             quantity = Math.floor(quantity / quantityTickSize) * quantityTickSize;
         }
 
@@ -194,7 +197,7 @@ export class Trade {
             const nonce = Date.now();
 
             await axios.post(
-                "https://api.crypto.com/v2/private/create-order",
+                "https://api.crypto.com/exchange/v1/private/create-order",
                 this.Authentication.sign({
                     id: nonce,
                     method: "private/create-order",
@@ -202,11 +205,11 @@ export class Trade {
                         instrument_name: instrument.instrument_name,
                         side: "SELL",
                         type: "MARKET",
-                        quantity: quantity,
+                        quantity: toPlainString(quantity),
                         client_oid: `sell-${tradeType}-${Date.now()}`
                     },
                     nonce: nonce
-                }), { timeout: 30000 });
+                }), { timeout: 30000, headers: { "Content-Type": "application/json" } });
 
             return true;
         }
@@ -215,6 +218,76 @@ export class Trade {
 
             return false;
         }
+    }
+
+    /**
+     * Spreads a leftover amount of quote currency evenly (weight-aware) across the buyable coins,
+     * buying as much as the per-coin minimum order sizes allow. Returns the amount that could not be
+     * deployed. Used as a final pass during rebalancing so proceeds are not left sitting idle.
+     */
+    private async reinvestSpread(instruments: IInstrument[], book: IBook[], buyableCoins: string[], amount: number, webhookData: IMessageDataRebalance): Promise<number> {
+        let remaining = amount;
+
+        if (remaining <= 0 || buyableCoins.length === 0) {
+            return remaining;
+        }
+
+        const total = amount;
+
+        for (const coin of buyableCoins) {
+            if (remaining <= 0) {
+                break;
+            }
+
+            const instrument = instruments.find((row) => {
+                return row.base_currency.toUpperCase() === coin && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
+            });
+
+            if (!instrument) {
+                continue;
+            }
+
+            const orderBook = book.find((row) => {
+                return row.i === instrument.instrument_name;
+            });
+
+            if (!orderBook) {
+                continue;
+            }
+
+            const minimumNotional = this.Calculation.fixNotional(instrument, this.Calculation.minimumBuyNotional(instrument, orderBook));
+
+            if (minimumNotional > remaining) {
+                continue;
+            }
+
+            let buyNotional = this.Calculation.fixNotional(instrument, this.Calculation.getReinvestTarget(buyableCoins, coin, total));
+
+            if (buyNotional < minimumNotional) {
+                buyNotional = minimumNotional;
+            }
+
+            if (buyNotional > remaining) {
+                buyNotional = this.Calculation.fixNotional(instrument, remaining);
+            }
+
+            const bought = await this.buy(instrument, buyNotional, minimumNotional, ETradeType.REBALANCE);
+
+            if (bought) {
+                remaining -= buyNotional;
+
+                console.log(`[BUY] ${coin} for ${buyNotional} ${CONFIG.QUOTE}`);
+
+                webhookData.coins.push({
+                    currency: coin,
+                    amount: buyNotional,
+                    percentage: 0,
+                    direction: EMessageDataRebalanceCoinDirection.BUY
+                });
+            }
+        }
+
+        return remaining;
     }
 
     private async rebalanceMarketCaps(instruments: IInstrument[], tradableCoins: string[], tradableCoinsWithoutRemovalList: string[]) {
@@ -420,13 +493,13 @@ export class Trade {
         }
 
         /**
-         * Calculate the worth that should be invested into each coin.
+         * Re-invest the proceeds across the buyable coins. The total to reinvest is kept fixed so
+         * each coin receives its configured WEIGHT share (issue #21 — WEIGHT was previously ignored
+         * here because the proceeds were split equally). soldCoinWorth is decremented as the running
+         * remainder.
          */
-        const coinWorth = soldCoinWorth / tradableCoinsWithoutRemovalList.length;
+        const totalToReinvest = soldCoinWorth;
 
-        /**
-         * Re-invest into tradable coins.
-         */
         for (const coin of tradableCoinsWithoutRemovalList) {
             const instrument = instruments.find((row) => {
                 return row.base_currency.toUpperCase() === coin && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
@@ -450,7 +523,7 @@ export class Trade {
                 continue;
             }
 
-            let buyNotional = this.Calculation.fixNotional(instrument, coinWorth);
+            let buyNotional = this.Calculation.fixNotional(instrument, this.Calculation.getReinvestTarget(tradableCoinsWithoutRemovalList, coin, totalToReinvest));
 
             if (buyNotional < minimumNotional) {
                 buyNotional = minimumNotional;
@@ -460,7 +533,7 @@ export class Trade {
                 buyNotional = this.Calculation.fixNotional(instrument, soldCoinWorth);
             }
 
-            const bought = await this.buy(instrument, buyNotional, ETradeType.REBALANCE);
+            const bought = await this.buy(instrument, buyNotional, minimumNotional, ETradeType.REBALANCE);
 
             if (bought) {
                 soldCoinWorth -= buyNotional;
@@ -476,6 +549,13 @@ export class Trade {
             }
         }
 
+        /**
+         * Spread any remaining proceeds across the buyable coins so the full amount is redeployed
+         * (issue #24 — idle quote currency was previously left over and later mis-counted as fresh
+         * capital).
+         */
+        soldCoinWorth = await this.reinvestSpread(instruments, book, tradableCoinsWithoutRemovalList, soldCoinWorth, webhookData);
+
         if (webhookData.coins.length > 0) {
             WebHook.sendToDiscord(webhookData, EMessageType.REBALANCE_MARKET_CAP);
         }
@@ -483,7 +563,7 @@ export class Trade {
         return hadWorkToDo;
     }
 
-    private async rebalanceOverperformers(instruments: IInstrument[], tradableCoins: string[]) {
+    private async rebalanceOverperformers(instruments: IInstrument[], tradableCoins: string[], buyableCoins: string[]) {
         let hadWorkToDo = false;
 
         /**
@@ -541,7 +621,18 @@ export class Trade {
          * Sell overperforming coins.
          */
         let soldCoinWorth = 0;
-        const ignoreList = [];
+
+        /**
+         * Coins that must never be a BUY target during reinvestment: any coin that is not in the
+         * buyable universe (removal-list and excluded coins). This prevents the bot from reinvesting
+         * proceeds into a coin it is trying to remove from the portfolio — which previously caused it
+         * to repeatedly buy back a coin that had fallen far out of the top market caps (issues #13
+         * and #23). Coins that are sold below are appended to this list as well, so they are not
+         * immediately bought back.
+         */
+        const ignoreList: string[] = distributionDelta
+            .filter((coin) => !buyableCoins.includes(coin.name))
+            .map((coin) => coin.name);
 
         for (const tradableCoin of tradableCoins) {
             const instrument = instruments.find((row) => {
@@ -613,13 +704,20 @@ export class Trade {
         }
 
         /**
-         * Re-invest into underperforming coins.
+         * Re-invest into underperforming coins, bringing each one back up towards its target. Only
+         * genuine underperformers (below their target) are bought in this pass, and the ignore list
+         * guarantees we never buy a removal-list/excluded coin.
          */
-        for (let i = 0; i < tradableCoins.length; i++) {
+        for (let i = 0; i < buyableCoins.length; i++) {
             const lowestPerformer = this.Calculation.getLowestPerformer(distributionDelta, ignoreList);
 
-            if (!lowestPerformer) {
-                continue;
+            /**
+             * Stop once there are no more buyable underperformers. A coin at or above its target
+             * (deviation >= 0) should not be bought here — doing so previously caused the bot to pour
+             * the proceeds into a single coin and churn (issue #24).
+             */
+            if (!lowestPerformer || lowestPerformer.deviation >= 0) {
+                break;
             }
 
             ignoreList.push(lowestPerformer.name);
@@ -656,7 +754,7 @@ export class Trade {
                 buyNotional = this.Calculation.fixNotional(instrument, soldCoinWorth);
             }
 
-            const bought = await this.buy(instrument, buyNotional, ETradeType.REBALANCE);
+            const bought = await this.buy(instrument, buyNotional, minimumNotional, ETradeType.REBALANCE);
 
             if (bought) {
                 soldCoinWorth -= buyNotional;
@@ -672,6 +770,13 @@ export class Trade {
             }
         }
 
+        /**
+         * Spread any proceeds the underperformers could not absorb evenly (weight-aware) across the
+         * buyable coins, so the full sold amount is redeployed instead of being left idle as quote
+         * currency that would later be mis-counted as fresh capital (issue #24).
+         */
+        soldCoinWorth = await this.reinvestSpread(instruments, book, buyableCoins, soldCoinWorth, webhookData);
+
         if (webhookData.coins.length > 0) {
             WebHook.sendToDiscord(webhookData, EMessageType.REBALANCE_OVERPERFORMERS);
         }
@@ -679,7 +784,7 @@ export class Trade {
         return hadWorkToDo;
     }
 
-    private async investMoney(instruments: IInstrument[], tradableCoins: string[]) {
+    private async investMoney(instruments: IInstrument[], tradableCoins: string[], buyableCoins: string[]) {
         /**
          * Get the current account balance of the user for all coins.
          */
@@ -714,11 +819,13 @@ export class Trade {
         console.log("[CHECK] Investing new funds into portfolio");
 
         /**
-         * Invest into coins.
+         * Invest into coins. Only the buyable coins are invested into — coins that are scheduled for
+         * removal (or excluded) must never be bought, even during their removal grace window (issue
+         * #13: with TOP set to 0 the bot was still buying coins that were not in the manual list).
          */
         let totalInvestment = 0;
 
-        for (const tradableCoin of tradableCoins) {
+        for (const tradableCoin of buyableCoins) {
             const instrument = instruments.find((row) => {
                 return row.base_currency.toUpperCase() === tradableCoin && row.quote_currency.toUpperCase() === CONFIG.QUOTE.toUpperCase();
             });
@@ -737,7 +844,7 @@ export class Trade {
 
             const minimumNotional = this.Calculation.fixNotional(instrument, this.Calculation.minimumBuyNotional(instrument, orderBook));
 
-            const coinInvestmentTarget = this.Calculation.getCoinInvestmentTarget(tradableCoins, tradableCoin);
+            const coinInvestmentTarget = this.Calculation.getCoinInvestmentTarget(buyableCoins, tradableCoin);
             let buyNotional = this.Calculation.fixNotional(instrument, coinInvestmentTarget);
 
             if (buyNotional < minimumNotional) {
@@ -748,7 +855,7 @@ export class Trade {
                 continue;
             }
 
-            const bought = await this.buy(instrument, buyNotional, ETradeType.INVEST);
+            const bought = await this.buy(instrument, buyNotional, minimumNotional, ETradeType.INVEST);
 
             if (bought) {
                 availableFunds -= buyNotional;
@@ -759,10 +866,14 @@ export class Trade {
         }
 
         /**
-         * Add the investment to the trailing stop statistics.
+         * Add the investment to the trailing stop statistics. The cost basis is only increased by at
+         * most CONFIG.INVESTMENT (the fresh capital the user intends to add each interval). Without
+         * this cap, quote currency that was generated by rebalancing churn — not deposited by the
+         * user — would be counted as new money and inflate the basis, making the trailing stop
+         * progressively harder to arm (issue #24).
          */
         const portfolioATH = await this.getPortfolioATH();
-        let investment = portfolioATH.investment + totalInvestment;
+        let investment = this.Calculation.cappedInvestment(portfolioATH.investment, totalInvestment);
 
         if (portfolioATH.investment === 0) {
             /**
@@ -830,7 +941,7 @@ export class Trade {
         const webhookData: IMessageDataInvest = {
             investment: totalInvestment,
             remainingFunds: availableFunds,
-            coinAmount: tradableCoins.length,
+            coinAmount: buyableCoins.length,
             portfolioWorth: portfolioWorth
         }
 
@@ -899,9 +1010,10 @@ export class Trade {
         }
 
         /**
-         * Rebalance
+         * Rebalance. tradableCoinsWithoutRemovalList is the buyable universe — proceeds are only ever
+         * reinvested into these coins, never into coins on the removal list.
          */
-        const overperformersRebalanced = await this.rebalanceOverperformers(instruments, tradableCoins);
+        const overperformersRebalanced = await this.rebalanceOverperformers(instruments, tradableCoins, tradableCoinsWithoutRemovalList);
         //const underperformersRebalanced = await this.rebalanceUnderperformers(instruments, tradableCoins);
 
         /**
@@ -950,15 +1062,17 @@ export class Trade {
 
         /**
          * Get the actual tradable coins that are both on crypto.com and Coin Gecko and are
-         * not stablecoins.
+         * not stablecoins. tradableCoins includes the removal list (used for portfolio worth);
+         * buyableCoins excludes it (the coins we are actually allowed to buy into).
          */
         const coinRemovalList = await this.getCoinRemovalList();
         const tradableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins, coinRemovalList);
+        const buyableCoins = this.Calculation.getTradableCoins(instruments, stablecoins, coins);
 
         /**
          * Invest
          */
-        await this.investMoney(instruments, tradableCoins);
+        await this.investMoney(instruments, tradableCoins, buyableCoins);
     }
 
     public async stop() {

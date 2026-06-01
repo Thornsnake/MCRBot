@@ -1,17 +1,31 @@
-import cron from "cron";
+import { CronJob } from "cron";
 import { Trade } from "./class/Trade.js";
 import { CONFIG } from "./config.js";
 import cronValidator from "cron-validator";
 import Queue from "better-queue";
 import { spawn } from "child_process";
 
+/**
+ * Global safety nets. A stray rejected promise (e.g. a transient webhook or network failure) would
+ * otherwise terminate the whole process on modern Node versions, which is what made the bot
+ * occasionally stop without recovering (issue #12). We log such errors and keep running; the cron
+ * schedules continue on their next tick.
+ */
+process.on("unhandledRejection", (err) => {
+    console.error("Unhandled promise rejection:", err);
+});
+
+process.on("uncaughtException", (err) => {
+    console.error("Uncaught exception:", err);
+});
+
 class Bot {
     private _trade: Trade;
 
-    private _trailingStopSchedule: cron.CronJob;
-    private _investingSchedule: cron.CronJob;
-    private _rebalancingSchedule: cron.CronJob;
-    private _autoUpdateSchedule: cron.CronJob;
+    private _trailingStopSchedule: CronJob;
+    private _investingSchedule: CronJob;
+    private _rebalancingSchedule: CronJob;
+    private _autoUpdateSchedule: CronJob;
 
     private _queue: Queue;
 
@@ -105,10 +119,12 @@ class Bot {
         }
 
         /**
-         * Make sure the quote currency is valid.
+         * Make sure the quote currency is valid. On the Crypto.com Exchange v1, USD has by far the
+         * widest spot coverage and is the recommended default; USDT, BTC and EUR are also supported
+         * quote currencies. (USDC is intentionally not allowed — there are no USDC spot pairs.)
          */
-        if (!["USD", "BTC"].includes(CONFIG.QUOTE.toUpperCase())) {
-            console.log("The currency for the QUOTE option is not valid! Choose 'USD' or 'BTC'!");
+        if (!["USD", "USDT", "BTC", "EUR"].includes(CONFIG.QUOTE.toUpperCase())) {
+            console.log("The currency for the QUOTE option is not valid! Choose 'USD', 'USDT', 'BTC' or 'EUR'!");
             return false;
         }
 
@@ -271,13 +287,20 @@ class Bot {
                 if (this._autoUpdateSchedule) {
                     this._autoUpdateSchedule.stop();
                 }
+
+                /**
+                 * Actually exit the process. Previously the schedules were stopped but the process
+                 * was left alive, which the process manager could interpret as a hung process and
+                 * fail to restart cleanly (issue #12).
+                 */
+                process.exit(0);
             });
         }
 
         /**
          * Initiates the trailing stop schedule.
          */
-        this._trailingStopSchedule = new cron.CronJob(CONFIG.SCHEDULE.TRAILING_STOP, () => {
+        this._trailingStopSchedule = new CronJob(CONFIG.SCHEDULE.TRAILING_STOP, () => {
             if (this._autoUpdateRunning) {
                 return;
             }
@@ -288,7 +311,7 @@ class Bot {
         /**
          * Initiates the investing schedule.
          */
-        this._investingSchedule = new cron.CronJob(CONFIG.SCHEDULE.INVESTING, () => {
+        this._investingSchedule = new CronJob(CONFIG.SCHEDULE.INVESTING, () => {
             if (this._autoUpdateRunning) {
                 return;
             }
@@ -299,7 +322,7 @@ class Bot {
         /**
          * Initiates the rebalancing schedule.
          */
-        this._rebalancingSchedule = new cron.CronJob(CONFIG.SCHEDULE.REBALANCE, () => {
+        this._rebalancingSchedule = new CronJob(CONFIG.SCHEDULE.REBALANCE, () => {
             if (this._autoUpdateRunning) {
                 return;
             }
@@ -314,7 +337,7 @@ class Bot {
              * If you are reading this code, you should not mess with this cron schedule unless you
              * know what you are doing.
              */
-            this._autoUpdateSchedule = new cron.CronJob("40 0 0 * * *", async () => {
+            this._autoUpdateSchedule = new CronJob("40 0 0 * * *", async () => {
                 /**
                  * Wait for the process queue to be empty before starting the update process, so we do
                  * not abort any running schedules. We will wait for a total of 10 minutes. If the

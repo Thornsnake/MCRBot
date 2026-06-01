@@ -77,6 +77,9 @@ class WebHook {
     }
 
     public sendToDiscord(data: IMessageDataInvest | IMessageDataRebalance | null, type: EMessageType) {
+        // Webhook delivery must never be able to interrupt a trading flow, so any failure here is
+        // swallowed and logged (issue #12).
+        try {
         if (CONFIG["WEBHOOKS"]["DISCORD"]["ACTIVE"]) {
             if (!CONFIG["WEBHOOKS"]["DISCORD"]["URL"] || CONFIG["WEBHOOKS"]["DISCORD"]["URL"].trim().length === 0) {
                 return;
@@ -179,6 +182,10 @@ class WebHook {
             ).catch((err) => {
                 console.error(err);
             });
+        }
+        }
+        catch (err) {
+            console.error(err);
         }
     }
 }

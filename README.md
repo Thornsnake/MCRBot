@@ -1,20 +1,33 @@
 # MCRBot
 
-> [!WARNING]
-> **⚠️ THIS PROJECT IS OBSOLETE AND NO LONGER MAINTAINED ⚠️**
->
-> This code is very out of date and will likely **not work**. It was built against an older version of the crypto.com exchange API which has since changed significantly. Use this project at your own risk — it is provided here for reference purposes only and is no longer actively developed or supported.
-
 **This bot has both a DCA feature (Dollar Cost Averaging) and will also keep your portfolio balanced automatically. The coins in your portfolio can be either chosen manually, or automatically by market cap ranking. It is also supporting Webhooks for Discord.**
+
+> [!NOTE]
+> **2.0 — revived and migrated to the current Crypto.com Exchange API.**
+>
+> The old Crypto.com v2 Spot API this bot was originally built on was decommissioned on 31 July 2024, which is why older versions stopped working. Version 2.0 has been migrated to the current **Exchange v1 API**, has its dependencies modernized, and fixes a number of long-standing bugs.
+>
+> **Upgrading from an older version?** Just run `sh update.sh` (or `git pull` + `sh install.sh` + `sh restart.sh`). Your `config.ts` and saved state are fully compatible — no manual migration is needed. Your existing Crypto.com API key and secret continue to work. See [What's new in 2.0](#whats-new-in-20) below.
+
+## What's new in 2.0
+- **Migrated to the Crypto.com Exchange v1 API** (`https://api.crypto.com/exchange/v1/`). The old v2 endpoints were shut down by Crypto.com and no longer work.
+- **Fixed [#12](https://github.com/Thornsnake/MCRBot/issues/12)** — the bot could occasionally stop and not restart. Stray errors are now caught globally and webhook failures can no longer take the process down.
+- **Fixed [#13](https://github.com/Thornsnake/MCRBot/issues/13)** — with `TOP` set to `0`, the bot could still buy coins that were not in your manual list. Coins scheduled for removal are now sell-only and never bought.
+- **Fixed [#21](https://github.com/Thornsnake/MCRBot/issues/21)** — `WEIGHT` is now respected when reinvesting after a coin falls out of the top market caps (previously it was split equally).
+- **Fixed [#23](https://github.com/Thornsnake/MCRBot/issues/23)** — the bot no longer reinvests proceeds into a coin it is trying to remove from the portfolio.
+- **Fixed [#24](https://github.com/Thornsnake/MCRBot/issues/24)** — rebalancing now redeploys the full sold amount, and the trailing-stop cost basis is no longer inflated by quote currency generated through rebalancing churn.
+- **`QUOTE` now supports `USDT` and `EUR`** in addition to `USD` and `BTC` (see the configuration table). `USD` remains the recommended default — it has by far the widest selection of pairs on the exchange.
+- **Optional CoinGecko Demo API key** for more reliable market-cap lookups (`COINGECKO_API_KEY`).
+- **Modernized dependencies** (axios 1.x, cron 3.x, TypeScript 5.x) and a small unit-test suite (`npm test`).
 
 ## Requirements
 The bot is running on NodeJS and it is presumed you will want to run it with a process manager such as PM2, to automatically restart it in case of failure and keep it running when you detach from the terminal session. The following steps will make sure you have all prerequisits installed and the repository downloaded.
 ##### Install NodeJS
 Both the bot itself as well as the process manager will be run on NodeJS. You can install NodeJS with `apt-get install nodejs`.
 
-After NodeJS is installed, check the version with `node -v`. The required minimum version is 14. If the version shown is lower than that, you can upgrade it by executing the following command:
+After NodeJS is installed, check the version with `node -v`. The required minimum version is 20 (a current LTS release such as 20 or 22 is recommended; Node 14/16/18 are end-of-life). If the version shown is lower than that, you can upgrade it by executing the following command:
 
-`curl -sL https://deb.nodesource.com/setup_14.x | sudo bash -`
+`curl -sL https://deb.nodesource.com/setup_22.x | sudo bash -`
 
 After you have done that, you can install the new NodeJS version by executing `apt-get install nodejs` again.
 ##### Install PM2
@@ -38,10 +51,11 @@ To configure the bot, open the `config.ts` file with your favorite file editor a
 | -------------------------- | -------- | ---
 | APIKEY                     | string   | The API key from the crypto.com exchange.
 | SECRET                     | string   | The secret key from the crypto.com exchange.
+| COINGECKO_API_KEY          | string   | Optional. A free CoinGecko Demo API key for more reliable market-cap lookups. Leave empty to use the keyless public API.
 | SCHEDULE > TRAILING_STOP   | string   | The interval for the trailing stop check in cron format. Defaults to `every minute at the 30 second mark`.
 | SCHEDULE > INVESTING       | string   | The interval for the DCA investing in cron format. Defaults to `every day, 3 minutes after midnight`.
 | SCHEDULE > REBALANCE       | string   | The interval for the portfolio rebalancing in cron format. Defaults to `every 5 minutes`.
-| QUOTE                      | string   | The quote currency used on the exchange. Can be `USD` or `BTC`.
+| QUOTE                      | string   | The quote currency used on the exchange. Can be `USD`, `USDT`, `BTC` or `EUR`. `USD` is recommended — it has by far the widest selection of pairs. On the Crypto.com Exchange, `USD` is its own settlement currency; `USDT`/`USDC`/`PYUSD` are separate tradable coins, so they are excluded from trading as stablecoins regardless of the quote you pick.
 | INVESTMENT                 | number   | The amount of quote currency invested during each investment interval. This will be split over all coins.
 | TOP                        | number   | The top X coins by market cap to invest into and rebalance. Set this to `0` if you want to manually manage all coins.
 | REMOVAL                    | number   | The number of hours the bot should wait before selling a coin that has fallen out of the top x coins by market cap.
@@ -71,3 +85,8 @@ If you would like to check the log files, you can usually find them under `/root
 To update the bot to the newest version, execute `sh update.sh`. This will also automatically restart your bot after the update. Your current configuration will remain the same.
 
 You can also activate the `AUTO_UPDATE` option in the config file for automatic updates from Github every 24 hours.
+
+When upgrading to 2.0, your `config.ts`, `bot.name` and the saved state in `data/` are all compatible and are kept as-is. If you ran an affected older version for a long time, your trailing-stop cost basis (in `data/PortfolioATH.json`) may have been inflated by the bug described in [#24](https://github.com/Thornsnake/MCRBot/issues/24). This is optional, but if you want a clean slate you can stop the bot, delete `data/PortfolioATH.json`, and start it again — the bot will recreate it.
+
+## Running the tests
+A small unit-test suite covers the portfolio math. Run it with `npm test`. You can also verify that the live Crypto.com public API still matches what the bot expects with `npm run smoke` (read-only, no API key required).
