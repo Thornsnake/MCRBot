@@ -51,9 +51,10 @@ API keys or settings here — that all happens in the dashboard after the first 
 
 ## Configuration
 All configuration is done in the **web dashboard's Settings page** (there is no `config.ts` file
-anymore). Start the bot (`sh start.sh`), open the dashboard URL it prints, set a password on first
-login, then fill in your Crypto.com API key/secret and the options below. Saving applies changes live —
-the bot picks them up without a restart. The available options are:
+anymore). Start the bot (`sh start.sh`), then open the dashboard — by default at
+**http://127.0.0.1:4100** (the exact URL is printed to the PM2 log; view it with `pm2 logs`). Set a
+password on first login, then fill in your Crypto.com API key/secret and the options below. Saving
+applies changes live — the bot picks them up without a restart. The trading options are:
 
 | Option                     | Type     | Description
 | -------------------------- | -------- | ---
@@ -80,7 +81,9 @@ the bot picks them up without a restart. The available options are:
 | AUTO_UPDATE                | boolean  | Automatically check for updates every 24 hours and (if one was found) install them. Will restart the bot automatically after the update.
 | DRY                        | boolean  | Dry run. Don't execute the orders on the exchange. This is a debug feature.
 
-Each field in the Settings page has a short description. When you are done, click **Save**.
+Each field in the Settings page has a short description. When you are done, click **Save**. The
+dashboard's own options (host, port, config-editing, poll interval) are described in the
+[Web Dashboard](#web-dashboard) section below.
 
 ## Web Dashboard
 The dashboard runs in the same process as the bot and starts automatically (unless you set
@@ -103,19 +106,27 @@ The dashboard runs in the same process as the bot and starts automatically (unle
 You can easily start, restart and stop the bot by executing the corresponding scripts, either with `sh start.sh`, `sh restart.sh` or `sh stop.sh`.
 
 ## Monitoring and Logs
-To monitor your currently running bot, enter `pm2 monit` and select it with the arrow keys in the list on the left.
-If you would like to check the log files, you can usually find them under `/root/.pm2/logs/` or you can check the latest log lines with `pm2 logs MCRBot`. For more PM2 commands, visit the [Quick Start Page](https://pm2.keymetrics.io/docs/usage/quick-start/).
+The easiest way to watch the bot is the **web dashboard** — portfolio worth, the distribution heatmap,
+trades and performance, all updating live.
+
+For the process itself, `pm2 monit` shows live CPU/memory and logs (select your bot with the arrow
+keys). Log files are usually under `~/.pm2/logs/`, or tail them with `pm2 logs <your-bot-name>`. For
+more PM2 commands, visit the [Quick Start Page](https://pm2.keymetrics.io/docs/usage/quick-start/).
 
 ## Updating the Bot
-To update the bot to the newest version, execute `sh update.sh`. This will also automatically restart your bot after the update. Your current configuration will remain the same.
+To update the bot to the newest version, execute `sh update.sh`. This pulls the latest code, rebuilds
+the bot and the dashboard, and restarts automatically. Your configuration and history live in the
+database under `data/` (which is never touched by updates), so your settings are preserved.
 
-You can also activate the `AUTO_UPDATE` option in the config file for automatic updates from Github every 24 hours.
+You can also enable the `AUTO_UPDATE` option in the dashboard's Settings page to check GitHub for
+updates every 24 hours and install them automatically.
 
-**Upgrading to 3.0 is a clean break.** Configuration moved out of `config.ts` into the SQLite database
-and is now managed entirely from the dashboard. After running `sh update.sh`, open the dashboard, set a
-password, and re-enter your settings (API keys, quote currency, schedules, weights, etc.). Your old
-`config.ts` and the `data/*.json` state files are no longer used; the new single database is
-`data/database.sqlite3`.
+> [!IMPORTANT]
+> **Upgrading from 2.x to 3.0 is a one-time clean break.** Configuration moved out of the old
+> `config.ts` file into the SQLite database and is now managed entirely from the dashboard. After
+> updating, open the dashboard, set a password, and re-enter your settings (API keys, quote currency,
+> schedules, weights, etc.). Your old `config.ts` and the `data/*.json` state files are no longer used;
+> the new single database is `data/database.sqlite3`.
 
 ## Running the tests
 A small unit-test suite covers the portfolio math. Run it with `npm test`. You can also verify that the live Crypto.com public API still matches what the bot expects with `npm run smoke` (read-only, no API key required).
