@@ -29,13 +29,13 @@ export const CONFIG = {
     },
 
     /**
-     * The quote currency of your exchange pairs. Can be "USD", "USDT", "BTC" or "EUR". Please
-     * take in mind that if you set the quote currency to e.g. "BTC", the INVESTMENT option
-     * must also be set in that currency.
+     * The quote currency of your exchange pairs. Any quote currency the Crypto.com Exchange lists
+     * spot pairs for is supported, for example "USD", "USDT", "BTC" or "EUR". Please take in mind
+     * that if you set the quote currency to e.g. "BTC", the INVESTMENT option must also be set in
+     * that currency.
      *
      * "USD" is recommended: on the Crypto.com Exchange it has by far the widest selection of
-     * trading pairs. "USDT" works too but covers fewer coins. 25 USD at time of writing this
-     * would be about 0.0008 BTC.
+     * trading pairs. 25 USD at time of writing this would be about 0.0008 BTC.
      */
     QUOTE: "USD",
 

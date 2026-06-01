@@ -16,7 +16,7 @@
 - **Fixed [#21](https://github.com/Thornsnake/MCRBot/issues/21)** — `WEIGHT` is now respected when reinvesting after a coin falls out of the top market caps (previously it was split equally).
 - **Fixed [#23](https://github.com/Thornsnake/MCRBot/issues/23)** — the bot no longer reinvests proceeds into a coin it is trying to remove from the portfolio.
 - **Fixed [#24](https://github.com/Thornsnake/MCRBot/issues/24)** — rebalancing now redeploys the full sold amount, and the trailing-stop cost basis is no longer inflated by quote currency generated through rebalancing churn.
-- **`QUOTE` now supports `USDT` and `EUR`** in addition to `USD` and `BTC` (see the configuration table). `USD` remains the recommended default — it has by far the widest selection of pairs on the exchange.
+- **`QUOTE` now supports any quote currency the exchange lists pairs for** (e.g. `USD`, `USDT`, `BTC`, `EUR`), instead of a fixed list. `USD` remains the recommended default — it has by far the widest selection of pairs on the exchange.
 - **Optional CoinGecko Demo API key** for more reliable market-cap lookups (`COINGECKO_API_KEY`).
 - **Modernized dependencies** (axios 1.x, cron 3.x, TypeScript 5.x) and a small unit-test suite (`npm test`).
 
@@ -55,7 +55,7 @@ To configure the bot, open the `config.ts` file with your favorite file editor a
 | SCHEDULE > TRAILING_STOP   | string   | The interval for the trailing stop check in cron format. Defaults to `every minute at the 30 second mark`.
 | SCHEDULE > INVESTING       | string   | The interval for the DCA investing in cron format. Defaults to `every day, 3 minutes after midnight`.
 | SCHEDULE > REBALANCE       | string   | The interval for the portfolio rebalancing in cron format. Defaults to `every 5 minutes`.
-| QUOTE                      | string   | The quote currency used on the exchange. Can be `USD`, `USDT`, `BTC` or `EUR`. `USD` is recommended — it has by far the widest selection of pairs. On the Crypto.com Exchange, `USD` is its own settlement currency; `USDT`/`USDC`/`PYUSD` are separate tradable coins, so they are excluded from trading as stablecoins regardless of the quote you pick.
+| QUOTE                      | string   | The quote currency used on the exchange. Any quote currency the exchange lists spot pairs for is supported (e.g. `USD`, `USDT`, `BTC`, `EUR`). `USD` is recommended — it has by far the widest selection of pairs. On the Crypto.com Exchange, `USD` is its own settlement currency; `USDT`/`USDC`/`PYUSD` are separate tradable coins, so they are excluded from trading as stablecoins regardless of the quote you pick.
 | INVESTMENT                 | number   | The amount of quote currency invested during each investment interval. This will be split over all coins.
 | TOP                        | number   | The top X coins by market cap to invest into and rebalance. Set this to `0` if you want to manually manage all coins.
 | REMOVAL                    | number   | The number of hours the bot should wait before selling a coin that has fallen out of the top x coins by market cap.

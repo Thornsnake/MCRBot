@@ -119,12 +119,29 @@ class Bot {
         }
 
         /**
-         * Make sure the quote currency is valid. On the Crypto.com Exchange v1, USD has by far the
-         * widest spot coverage and is the recommended default; USDT, BTC and EUR are also supported
-         * quote currencies. (USDC is intentionally not allowed — there are no USDC spot pairs.)
+         * Normalize the quote currency to upper case so it matches the exchange's instrument symbols
+         * (which are always upper case, e.g. BTC_USD).
          */
-        if (!["USD", "USDT", "BTC", "EUR"].includes(CONFIG.QUOTE.toUpperCase())) {
-            console.log("The currency for the QUOTE option is not valid! Choose 'USD', 'USDT', 'BTC' or 'EUR'!");
+        CONFIG.QUOTE = String(CONFIG.QUOTE).toUpperCase();
+
+        /**
+         * Any quote currency is allowed, as long as the exchange actually lists tradable spot pairs
+         * for it (USD, USDT, BTC, EUR, ...). Rather than hard-coding a list, we verify against the
+         * live instruments so that whatever the exchange supports, the bot supports too.
+         */
+        const instruments = await this._trade.Instrument.all();
+
+        if (!instruments) {
+            console.log("Unable to load the list of instruments from the exchange. Please try again in a moment.");
+            return false;
+        }
+
+        const quoteHasPairs = instruments.some((instrument) => {
+            return instrument.quote_currency.toUpperCase() === CONFIG.QUOTE;
+        });
+
+        if (!quoteHasPairs) {
+            console.log(`The QUOTE currency '${CONFIG.QUOTE}' has no tradable spot pairs on the exchange. Choose a quote currency the exchange lists pairs for, for example USD (recommended, widest coverage), USDT, BTC or EUR.`);
             return false;
         }
 

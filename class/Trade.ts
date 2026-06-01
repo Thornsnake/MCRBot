@@ -44,7 +44,7 @@ export class Trade {
         return this._authentication;
     }
 
-    private get Instrument() {
+    public get Instrument() {
         return this._instrument;
     }
 
