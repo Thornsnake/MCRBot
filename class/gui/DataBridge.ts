@@ -182,18 +182,6 @@ class DataBridge {
         }
     }
 
-    public recordEvent(type: string, coin: string | null, message: string | null) {
-        try {
-            Database.execute(
-                `INSERT INTO "Events" ("timestamp", "type", "coin", "message") VALUES (?, ?, ?, ?)`,
-                [Date.now(), type, coin, message]
-            );
-        }
-        catch (err) {
-            console.error("[GUI] Failed to record event:", err);
-        }
-    }
-
     // ---- REST data access ------------------------------------------------
 
     public getDashboard() {
@@ -344,10 +332,6 @@ class DataBridge {
             },
             removalList
         };
-    }
-
-    public getEvents(limit = 50) {
-        return Database.all(`SELECT * FROM "Events" ORDER BY "timestamp" DESC LIMIT ?`, [limit]) ?? [];
     }
 }
 

@@ -6,7 +6,8 @@
         "moduleResolution": "node",
         "esModuleInterop": true,
         "removeComments": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "noEmitOnError": true
     },
     "exclude": ["node_modules", "test", "gui"]
 }

@@ -154,6 +154,37 @@ test("fixNotional / fixQuantity / minimumSellQuantity respect instrument precisi
     approx(calc.minimumSellQuantity(instr), 0.1, "min sell quantity from decimals");
 });
 
+/* -------------------------------------------------------------------------- */
+/* Numeric robustness against floating-point and malformed order-book data     */
+/* -------------------------------------------------------------------------- */
+
+test("fixNotional does not drop a whole tick on binary-float boundary values", () => {
+    resetConfig();
+    const instr = instrument({ price_decimals: 2 });
+    // 0.29 * 100 = 28.999999999999996 in IEEE-754 — must still round-trip to 0.29, not 0.28.
+    approx(calc.fixNotional(instr, 0.29), 0.29, "0.29 stays 0.29");
+    approx(calc.fixNotional(instr, 0.58), 0.58, "0.58 stays 0.58");
+    // A genuine sub-tick remainder is still floored down.
+    approx(calc.fixNotional(instr, 0.299), 0.29, "0.299 floors to 0.29");
+});
+
+test("getOrderBookBidWorth skips malformed (NaN) levels instead of returning NaN", () => {
+    resetConfig();
+    const book: IBook = { i: "A_USD", bids: [[100, 2], [NaN, 5], [99, 5]], asks: [], t: 0 };
+    // Selling 3 units: 2 @ 100 + 1 @ 99 = 299 — the NaN level is skipped, not poisoning the sum.
+    approx(calc.getOrderBookBidWorth(3, book), 299, "NaN level skipped");
+    assert.ok(Number.isFinite(calc.getOrderBookBidWorth(3, book)), "result is finite");
+});
+
+test("minimumBuyNotional falls back to the price-only minimum when asks are empty", () => {
+    resetConfig();
+    const instr = instrument({ price_decimals: 5, quantity_decimals: 1 });
+    const book: IBook = { i: "A_USD", bids: [[100, 2]], asks: [], t: 0 };
+    const expected = (1 / Math.pow(10, 5)) * 1.1;
+    approx(calc.minimumBuyNotional(instr, book), expected, "empty asks -> price-only minimum");
+    assert.ok(Number.isFinite(calc.minimumBuyNotional(instr, book)), "result is finite");
+});
+
 console.log("");
 
 if (failures > 0) {

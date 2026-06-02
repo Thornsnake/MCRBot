@@ -37,6 +37,10 @@ class Bot {
     private _autoUpdateRunning: boolean;
     private _schedulesStarted: boolean;
 
+    // Whether a job of each type is already queued (waiting to run). Used to collapse duplicate
+    // cron ticks so the queue can never grow unbounded when the exchange is slow.
+    private _queued: Record<string, boolean>;
+
     constructor() {
         this._trade = new Trade();
         this._schedulesStarted = false;
@@ -48,6 +52,10 @@ class Bot {
 
         this._queue = new Queue(async (job: string, callback: (arg0: any, arg1: any) => void) => {
             try {
+                // This job type is now executing; clear its queued flag so the next cron tick may
+                // enqueue the following cycle (see createSchedule).
+                this._queued[job] = false;
+
                 switch (job) {
                     case "TRAILING_STOP":
                         this._trailingStopRunning = true;
@@ -91,6 +99,7 @@ class Bot {
         this._investingRunning = false;
         this._rebalancingRunning = false;
         this._autoUpdateRunning = false;
+        this._queued = { TRAILING_STOP: false, INVEST: false, REBALANCE: false };
     }
 
     async check() {
@@ -273,6 +282,36 @@ class Bot {
             CONFIG["AUTO_UPDATE"] = false;
         }
 
+        /**
+         * Reject any non-finite numeric option. The range checks above use `<`/`>` comparisons that
+         * silently let NaN through (e.g. a malformed persisted config or a wrong-typed value), which
+         * would then break the trading math at runtime.
+         */
+        const numericOptions: [string, number][] = [
+            ["INVESTMENT", CONFIG.INVESTMENT],
+            ["TOP", CONFIG.TOP],
+            ["REMOVAL", CONFIG["REMOVAL"]],
+            ["THRESHOLD", CONFIG.THRESHOLD],
+            ["TRAILING_STOP.MIN_PROFIT", CONFIG.TRAILING_STOP.MIN_PROFIT],
+            ["TRAILING_STOP.MAX_DROP", CONFIG.TRAILING_STOP.MAX_DROP],
+            ["TRAILING_STOP.RESUME", CONFIG.TRAILING_STOP.RESUME]
+        ];
+
+        for (const [name, value] of numericOptions) {
+            if (typeof value !== "number" || !Number.isFinite(value)) {
+                console.log(`The ${name} option must be a valid number!`);
+                return false;
+            }
+        }
+
+        /**
+         * DRY is the simulation kill-switch. If a corrupted or wrong-typed value was persisted, fail
+         * safe to simulation rather than silently placing real orders.
+         */
+        if (typeof CONFIG.DRY !== "boolean") {
+            CONFIG.DRY = true;
+        }
+
         return true;
     }
 
@@ -358,6 +397,19 @@ class Bot {
                 return;
             }
 
+            const running =
+                name === "TRAILING_STOP" ? this._trailingStopRunning :
+                name === "INVEST" ? this._investingRunning :
+                this._rebalancingRunning;
+
+            // Skip if a job of this type is already running or already waiting in the queue. Without
+            // this gate, a slow or erroring exchange lets every tick enqueue another duplicate cycle,
+            // so the queue grows unbounded and a burst of stale cycles fires back-to-back on recovery.
+            if (running || this._queued[name]) {
+                return;
+            }
+
+            this._queued[name] = true;
             this._queue.push(name);
         });
 
@@ -378,6 +430,8 @@ class Bot {
 
                 console.log(`[UPDATE] Waiting for schedules to finish`);
 
+                let spawned = false;
+
                 for (let i = 0; i < 600; i++) {
                     if (this._trailingStopRunning || this._investingRunning || this._rebalancingRunning) {
                         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -391,7 +445,17 @@ class Bot {
                                 stdio: "ignore"
                             });
 
-                            subprocess.unref();
+                            /**
+                             * Keep blocking new trading jobs for the ENTIRE update (git + install +
+                             * build + pm2 restart), not merely until the detached process was
+                             * launched. Release the guard only when update.sh actually exits or fails
+                             * to start. Previously the guard was cleared milliseconds after spawn, so
+                             * a rebalance could begin mid-update and be killed by the restart after
+                             * selling but before rebuying.
+                             */
+                            spawned = true;
+                            subprocess.on("exit", () => { this._autoUpdateRunning = false; });
+                            subprocess.on("error", (err) => { console.error(err); this._autoUpdateRunning = false; });
                         }
                         catch (err) {
                             console.error(err);
@@ -400,11 +464,17 @@ class Bot {
                         break;
                     }
                 }
+
+                /**
+                 * Release the guard if we never launched update.sh (spawn threw, or the queue never
+                 * drained within the wait window). When it did launch, its exit/error handler owns it.
+                 */
+                if (!spawned) {
+                    this._autoUpdateRunning = false;
+                }
             }
             catch (err) {
                 console.error(err);
-            }
-            finally {
                 this._autoUpdateRunning = false;
             }
         });

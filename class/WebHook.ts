@@ -5,7 +5,6 @@ export enum EMessageType {
     INVEST = "INVEST",
     REBALANCE_MARKET_CAP = "REBALANCE_MARKET_CAP",
     REBALANCE_OVERPERFORMERS = "REBALANCE_OVERPERFORMERS",
-    REBALANCE_UNDERPERFORMERS = "REBALANCE_UNDERPERFORMERS",
     TRAILING_STOP = "TRAILING_STOP",
     ARMED = "ARMED",
     CONTINUE = "CONTINUE"
@@ -48,7 +47,6 @@ class WebHook {
                         INVEST: true,
                         REBALANCE_MARKET_CAP: true,
                         REBALANCE_OVERPERFORMERS: true,
-                        REBALANCE_UNDERPERFORMERS: true,
                         TRAILING_STOP: true,
                         ARMED: true,
                         CONTINUE: true
@@ -97,10 +95,6 @@ class WebHook {
                 return;
             }
 
-            if (type === EMessageType.REBALANCE_UNDERPERFORMERS && !CONFIG["WEBHOOKS"]["DISCORD"]["POST"]["REBALANCE_UNDERPERFORMERS"]) {
-                return;
-            }
-
             if (type === EMessageType.TRAILING_STOP && !CONFIG["WEBHOOKS"]["DISCORD"]["POST"]["TRAILING_STOP"]) {
                 return;
             }
@@ -143,18 +137,6 @@ class WebHook {
                 embed.setColor(parseInt("0x0b8f8f", 16));
                 embed.setTitle("Portfolio rebalanced");
                 embed.setDescription(`Coins in your portfolio were **overperforming**.\nCurrent portfolio worth is **${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}**.`)
-                
-                for (let i = 0; i < messageData.coins.length && i < 25; i++) {
-                    const coin = messageData.coins[i];
-                    embed.addField(`${coin.currency} (${coin.direction === EMessageDataRebalanceCoinDirection.SELL ? "▲" : "▼"} ${coin.percentage.toFixed(2)}%)`, `${coin.direction} for ${this.formatCurrency(Math.abs(coin.amount))} ${CONFIG.QUOTE}`, true);
-                }
-            }
-            else if (type === EMessageType.REBALANCE_UNDERPERFORMERS) {
-                const messageData = <IMessageDataRebalance>data;
-
-                embed.setColor(parseInt("0x0b8f8f", 16));
-                embed.setTitle("Portfolio rebalanced");
-                embed.setDescription(`Coins in your portfolio were **underperforming**.\nCurrent portfolio worth is **${this.formatCurrency(messageData.portfolioWorth)} ${CONFIG.QUOTE}**.`)
                 
                 for (let i = 0; i < messageData.coins.length && i < 25; i++) {
                     const coin = messageData.coins[i];

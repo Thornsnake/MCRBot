@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react";
 import { KeyRound } from "lucide-react";
 import client, { extractApiError } from "../../api/client";
 import { useAppStore } from "../../stores/appStore";
+import { reconnectSocket } from "../../api/socket";
 import type { AuthTokenResponse } from "../../api/types";
 
 const inputClass =
@@ -41,7 +42,12 @@ export default function ChangePassword({
         currentPassword: current,
         newPassword: next,
       });
-      if (data.token) login(data.token);
+      if (data.token) {
+        login(data.token);
+        // The password change invalidated every existing token server-side; re-handshake the live
+        // socket with the freshly issued one so live updates survive the next reconnect.
+        reconnectSocket();
+      }
       onResult("Password changed successfully.", "success");
       setCurrent("");
       setNext("");

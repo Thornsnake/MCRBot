@@ -36,7 +36,6 @@ export interface IConfig {
                 INVEST: boolean;
                 REBALANCE_MARKET_CAP: boolean;
                 REBALANCE_OVERPERFORMERS: boolean;
-                REBALANCE_UNDERPERFORMERS: boolean;
                 TRAILING_STOP: boolean;
                 ARMED: boolean;
                 CONTINUE: boolean;
@@ -90,7 +89,6 @@ export const DEFAULT_CONFIG: IConfig = {
                 INVEST: true,
                 REBALANCE_MARKET_CAP: true,
                 REBALANCE_OVERPERFORMERS: true,
-                REBALANCE_UNDERPERFORMERS: true,
                 TRAILING_STOP: true,
                 ARMED: true,
                 CONTINUE: true
@@ -118,6 +116,12 @@ export function deepMerge(target: any, source: any): any {
     }
 
     for (const key of Object.keys(source)) {
+        // Never merge prototype-polluting keys. The HTTP body parser already strips these, but
+        // loadConfig and any direct caller should be safe regardless (defence in depth).
+        if (key === "__proto__" || key === "constructor" || key === "prototype") {
+            continue;
+        }
+
         const value = source[key];
 
         if (Array.isArray(value)) {

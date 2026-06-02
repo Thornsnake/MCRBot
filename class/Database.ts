@@ -104,18 +104,6 @@ class Database {
         `);
         this._tables.push(`CREATE INDEX IF NOT EXISTS "Idx_Dist_Time" ON "DistributionSnapshots" ("timestamp")`);
         this._tables.push(`CREATE INDEX IF NOT EXISTS "Idx_Dist_Coin" ON "DistributionSnapshots" ("coin", "timestamp")`);
-
-        // --- Notable events (trailing stop armed/triggered/resumed, removals, errors) ---
-        this._tables.push(`
-            CREATE TABLE IF NOT EXISTS "Events" (
-                "event_id"   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                "timestamp"  INTEGER NOT NULL,
-                "type"       TEXT    NOT NULL,
-                "coin"       TEXT,
-                "message"    TEXT
-            );
-        `);
-        this._tables.push(`CREATE INDEX IF NOT EXISTS "Idx_Events_Time" ON "Events" ("timestamp")`);
     }
 
     /**

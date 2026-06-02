@@ -17,14 +17,14 @@ UPSTREAM=$(git rev-parse master@{upstream})
 # Check if there are any updates to the current code
 if [ "$HEADHASH" != "$UPSTREAM" ]
 then
-    # Pull the current repository
-    git pull origin master;
-
-    # Execute the install script
-    sh install.sh;
-
-    # Execute the restart script
-    sh restart.sh;
+    # Pull, rebuild and restart — but only proceed to each step if the previous one succeeded, so a
+    # failed pull or a broken compile never restarts the bot on a half-updated / non-compiling tree.
+    if git pull origin master && sh install.sh && sh restart.sh; then
+        echo "[OK] Update complete.";
+    else
+        echo "[ERROR] Update failed; the bot keeps running the previous version.";
+        exit 1;
+    fi
 else
     echo "[SKIP] Your version is up to date!";
 fi

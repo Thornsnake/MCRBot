@@ -29,13 +29,25 @@ echo "[SETUP] Installing package dependencies ...";
 npm install;
 
 echo "[SETUP] Compiling the bot ...";
-./node_modules/.bin/tsc;
+if ! ./node_modules/.bin/tsc; then
+    echo "[ERROR] Bot compilation failed; aborting so the previous build is left intact.";
+    exit 1;
+fi
 
 # Build the web dashboard. This is optional — if it fails, the bot still runs,
-# just without the dashboard.
+# just without the dashboard. Build into a temporary directory and swap it into place only on
+# success, so a failed build never wipes the existing dashboard (vite empties its output dir at the
+# start of every build).
 if [ -d "gui" ]; then
     echo "[SETUP] Building the web dashboard ...";
-    ( cd gui && npm install && npm run build ) || echo "[WARN] Dashboard build failed; the bot will run without the dashboard.";
+    if ( cd gui && npm install && npm run build -- --outDir ../class/gui/public.next --emptyOutDir ); then
+        rm -rf class/gui/public;
+        mv class/gui/public.next class/gui/public;
+        echo "[SETUP] Dashboard built.";
+    else
+        rm -rf class/gui/public.next 2>/dev/null;
+        echo "[WARN] Dashboard build failed; keeping the previous dashboard build.";
+    fi
 fi
 
 # Install PM2 globally (under the active nvm Node) if it is not present.
@@ -53,7 +65,7 @@ then
     echo "In case you want to run more than one bot, you need to enter a unique name for each!";
     echo "If you are already running a different bot, make sure you give this one another name!";
     echo "";
-    echo -n "How do you want to call this bot: ";
+    printf "How do you want to call this bot: ";
     read -r name;
 
     while [ ! ${#name} -ge 1 ]

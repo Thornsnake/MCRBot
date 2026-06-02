@@ -12,9 +12,19 @@ export class Instrument {
                 { timeout: 30000 }
             ));
 
+            // The v1 API can return an error envelope (HTTP 200, no `result`) on maintenance/edge
+            // responses, which retry() does not retry. Guard the dereference so it returns cleanly
+            // (callers already treat a falsy result as "skip this cycle") instead of throwing.
+            const data = response.data?.result?.data;
+
+            if (!Array.isArray(data)) {
+                console.error(`get-instruments returned an unexpected response (code: ${response.data?.code}). Skipping this cycle.`);
+                return undefined;
+            }
+
             const instruments: IInstrument[] = [];
 
-            for (const instrument of response.data.result.data) {
+            for (const instrument of data) {
                 /**
                  * Only spot currency pairs are tradable by this bot. Skip perpetuals, futures and
                  * any instrument the exchange has flagged as not tradable.

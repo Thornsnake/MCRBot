@@ -130,14 +130,16 @@ function PerformanceChart({
 
 export default function PerformancePage() {
   const [rangeIdx, setRangeIdx] = useState(3); // default "All"
+  // The query window's absolute start is computed when the user picks a range — an event handler may
+  // read the clock, whereas calling Date.now() during render is impure.
+  const [startTime, setStartTime] = useState<number | undefined>(undefined);
   const { data: dashboard } = useDashboard();
   const quote = dashboard?.quote ?? "";
 
-  const params = useMemo(() => {
-    const range = TIME_RANGES[rangeIdx];
-    if (!range || range.ms === 0) return {};
-    return { startTime: Date.now() - range.ms };
-  }, [rangeIdx]);
+  const params = useMemo(
+    () => (startTime === undefined ? {} : { startTime }),
+    [startTime],
+  );
 
   const { data, isLoading } = usePerformance(params);
   const entries = useMemo(
@@ -145,22 +147,31 @@ export default function PerformancePage() {
     [data],
   );
 
+  // Collapse to one entry per whole second (last wins). lightweight-charts' setData requires
+  // strictly-ascending, unique time values; two snapshots landing in the same second would
+  // otherwise throw. entries is already sorted ascending, so flooring only creates equal seconds.
+  const dedupedEntries = useMemo(() => {
+    const bySecond = new Map<number, (typeof entries)[number]>();
+    for (const e of entries) {
+      const sec = Math.floor(e.timestamp / 1000);
+      if (sec > 0) bySecond.set(sec, e);
+    }
+    return [...bySecond.entries()].sort((a, b) => a[0] - b[0]);
+  }, [entries]);
+
   const worth = useMemo<SeriesPoint[]>(
     () =>
-      entries
-        .map((e) => ({ time: Math.floor(e.timestamp / 1000), value: e.worth }))
-        .filter((d) => d.time > 0 && isFinite(d.value)),
-    [entries],
+      dedupedEntries
+        .filter(([, e]) => isFinite(e.worth))
+        .map(([time, e]) => ({ time, value: e.worth })),
+    [dedupedEntries],
   );
   const basis = useMemo<SeriesPoint[]>(
     () =>
-      entries
-        .map((e) => ({
-          time: Math.floor(e.timestamp / 1000),
-          value: e.investment_basis,
-        }))
-        .filter((d) => d.time > 0 && isFinite(d.value)),
-    [entries],
+      dedupedEntries
+        .filter(([, e]) => isFinite(e.investment_basis))
+        .map(([time, e]) => ({ time, value: e.investment_basis })),
+    [dedupedEntries],
   );
 
   const latestWorth = entries.length ? entries[entries.length - 1].worth : 0;
@@ -218,7 +229,12 @@ export default function PerformancePage() {
               {TIME_RANGES.map((range, idx) => (
                 <button
                   key={range.label}
-                  onClick={() => setRangeIdx(idx)}
+                  onClick={() => {
+                    setRangeIdx(idx);
+                    setStartTime(
+                      range.ms === 0 ? undefined : Date.now() - range.ms,
+                    );
+                  }}
                   className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                     rangeIdx === idx
                       ? "bg-accent-blue text-white"

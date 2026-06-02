@@ -10,6 +10,5 @@ export const queryKeys = {
   performance: (params: Record<string, unknown>) =>
     ["performance", params] as const,
   portfolio: ["portfolio"] as const,
-  portfolioEvents: (limit: number) => ["portfolio", "events", limit] as const,
   config: ["config"] as const,
 };

@@ -104,8 +104,7 @@ export class Trade {
                 portfolioWorth: this._lastPortfolioWorth,
                 availableFunds: this._lastAvailableFunds,
                 distribution: this._lastDistribution,
-                trailingStop: await this.getPortfolioATH(),
-                removalList: await this.getCoinRemovalList()
+                trailingStop: await this.getPortfolioATH()
             });
         }
         catch (err) {
@@ -193,6 +192,12 @@ export class Trade {
             return true;
         }
 
+        // Reject non-finite or non-positive amounts outright. A malformed/illiquid order-book level
+        // can otherwise yield NaN/Infinity that slips past the comparisons below (see Book.all).
+        if (!Number.isFinite(notional) || notional <= 0) {
+            return false;
+        }
+
         // Sanity checks. The v1 API no longer exposes min_price/min_quantity, so the minimum order
         // value is derived from the order book by the caller (Calculation.minimumBuyNotional) and
         // passed in as minimumNotional.
@@ -212,7 +217,7 @@ export class Trade {
         try {
             const nonce = Date.now();
 
-            await axios.post(
+            const response = await axios.post(
                 "https://api.crypto.com/exchange/v1/private/create-order",
                 this.Authentication.sign({
                     id: nonce,
@@ -226,6 +231,15 @@ export class Trade {
                     },
                     nonce: nonce
                 }), { timeout: 30000, headers: { "Content-Type": "application/json" } });
+
+            // The v1 API returns HTTP 200 with a JSON envelope even for business rejections
+            // (insufficient balance, precision/min-notional, duplicate client_oid, ...). axios only
+            // throws on network/4xx/5xx, so we must inspect the body: only code 0 is an accepted
+            // order. Anything else must NOT be counted as a successful trade (issue: phantom fills).
+            if (response.data?.code !== 0) {
+                console.error(`[BUY] order rejected for ${instrument.instrument_name}: code=${response.data?.code} ${response.data?.message ?? ""}`);
+                return false;
+            }
 
             this.emitTrade({
                 coin: instrument.base_currency.toUpperCase(),
@@ -265,6 +279,12 @@ export class Trade {
             return true;
         }
 
+        // Reject non-finite or non-positive quantities outright. A malformed/illiquid order-book
+        // level can otherwise yield NaN/Infinity that slips past the comparisons below (see Book.all).
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+            return false;
+        }
+
         // Sanity checks. min_quantity no longer exists on the v1 API; the minimum sellable quantity
         // is derived from the instrument's quantity decimals instead.
         const quantityTickSize = parseFloat(instrument.quantity_tick_size);
@@ -284,7 +304,7 @@ export class Trade {
         try {
             const nonce = Date.now();
 
-            await axios.post(
+            const response = await axios.post(
                 "https://api.crypto.com/exchange/v1/private/create-order",
                 this.Authentication.sign({
                     id: nonce,
@@ -298,6 +318,14 @@ export class Trade {
                     },
                     nonce: nonce
                 }), { timeout: 30000, headers: { "Content-Type": "application/json" } });
+
+            // See buy(): a non-zero body code is a rejection even with HTTP 200. Treating it as a
+            // fill would advance the bot's accounting (and, in stop(), mark the portfolio "sold")
+            // while the position is still held.
+            if (response.data?.code !== 0) {
+                console.error(`[SELL] order rejected for ${instrument.instrument_name}: code=${response.data?.code} ${response.data?.message ?? ""}`);
+                return false;
+            }
 
             this.emitTrade({
                 coin: instrument.base_currency.toUpperCase(),
@@ -545,10 +573,14 @@ export class Trade {
                     console.log(`[CHECK] ${coinBalance.currency.toUpperCase()} should not be in the portfolio`);
                     hadWorkToDo = true;
 
-                    const sold = await this.sell(instrument, quantity, ETradeType.REBALANCE, this.Calculation.getOrderBookBidWorth(quantity, orderBook));
+                    // Compute this coin's proceeds once and report THAT per-coin amount; soldCoinWorth
+                    // remains the running total used for reinvestment below. (Previously the cumulative
+                    // total was logged/sent per coin, so the 2nd+ coin's reported value was inflated.)
+                    const coinWorth = this.Calculation.getOrderBookBidWorth(quantity, orderBook);
+                    const sold = await this.sell(instrument, quantity, ETradeType.REBALANCE, coinWorth);
 
                     if (sold) {
-                        soldCoinWorth += this.Calculation.getOrderBookBidWorth(quantity, orderBook);
+                        soldCoinWorth += coinWorth;
 
                         const index = coinRemovalList.findIndex((row) => {
                             return row.coin === coinBalance.currency.toUpperCase();
@@ -556,11 +588,11 @@ export class Trade {
 
                         coinRemovalList.splice(index, 1);
 
-                        console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${(soldCoinWorth)} ${CONFIG.QUOTE}`);
+                        console.log(`[SELL] ${coinBalance.currency.toUpperCase()} for ${coinWorth} ${CONFIG.QUOTE}`);
 
                         webhookData.coins.push({
                             currency: coinBalance.currency.toUpperCase(),
-                            amount: soldCoinWorth,
+                            amount: coinWorth,
                             percentage: 0,
                             direction: EMessageDataRebalanceCoinDirection.SELL
                         });
@@ -618,18 +650,21 @@ export class Trade {
 
             const minimumNotional = this.Calculation.fixNotional(instrument, this.Calculation.minimumBuyNotional(instrument, orderBook));
 
-            if (minimumNotional > soldCoinWorth) {
-                continue;
-            }
+            // Size this coin to its weighted share of the FIXED total to reinvest, but never spend
+            // more than the proceeds left. Only skip the coin when even the exchange minimum can no
+            // longer be covered by the remainder. Gating directly on the shrinking remainder
+            // (minimumNotional > soldCoinWorth) used to starve later weighted coins after earlier
+            // ones were bumped up to their minimum (issue #21 weight fidelity).
+            const reinvestTarget = this.Calculation.fixNotional(instrument, this.Calculation.getReinvestTarget(tradableCoinsWithoutRemovalList, coin, totalToReinvest));
 
-            let buyNotional = this.Calculation.fixNotional(instrument, this.Calculation.getReinvestTarget(tradableCoinsWithoutRemovalList, coin, totalToReinvest));
-
-            if (buyNotional < minimumNotional) {
-                buyNotional = minimumNotional;
-            }
+            let buyNotional = reinvestTarget > 0 ? Math.max(reinvestTarget, minimumNotional) : 0;
 
             if (buyNotional > soldCoinWorth) {
                 buyNotional = this.Calculation.fixNotional(instrument, soldCoinWorth);
+            }
+
+            if (buyNotional < minimumNotional) {
+                continue;
             }
 
             const bought = await this.buy(instrument, buyNotional, minimumNotional, ETradeType.REBALANCE);
@@ -769,17 +804,22 @@ export class Trade {
                 continue;
             }
 
-            const sold = await this.sell(instrument, quantity, ETradeType.REBALANCE, coin.deviation);
+            // Reconcile the accumulated/reported proceeds with what the quantity actually realizes
+            // when walked across the book. coin.deviation was a blended multi-level worth, so dividing
+            // it by only the top bid undersizes the quantity slightly; accumulate and report the real
+            // realized worth so soldCoinWorth and the webhook match what was sold.
+            const realizedWorth = this.Calculation.getOrderBookBidWorth(quantity, orderBook);
+            const sold = await this.sell(instrument, quantity, ETradeType.REBALANCE, realizedWorth);
 
             if (sold) {
-                soldCoinWorth += coin.deviation;
+                soldCoinWorth += realizedWorth;
                 ignoreList.push(coin.name);
 
-                console.log(`[SELL] ${tradableCoin} for ${coin.deviation} ${CONFIG.QUOTE}`);
+                console.log(`[SELL] ${tradableCoin} for ${realizedWorth} ${CONFIG.QUOTE}`);
 
                 webhookData.coins.push({
                     currency: tradableCoin,
-                    amount: coin.deviation,
+                    amount: realizedWorth,
                     percentage: coin.percentage,
                     direction: EMessageDataRebalanceCoinDirection.SELL
                 });
@@ -1121,12 +1161,11 @@ export class Trade {
          * reinvested into these coins, never into coins on the removal list.
          */
         const overperformersRebalanced = await this.rebalanceOverperformers(instruments, tradableCoins, tradableCoinsWithoutRemovalList);
-        //const underperformersRebalanced = await this.rebalanceUnderperformers(instruments, tradableCoins);
 
         /**
          * Write that the bot had nothing to do if that is the case.
          */
-        if (!marketCapRebalanced && !overperformersRebalanced/* && !underperformersRebalanced*/) {
+        if (!marketCapRebalanced && !overperformersRebalanced) {
             if (CONFIG["IDLE_MESSAGE"]) {
                 console.log(CONFIG["IDLE_MESSAGE"]);
             }
@@ -1225,8 +1264,7 @@ export class Trade {
             portfolioWorth,
             availableFunds,
             distribution,
-            trailingStop: await this.getPortfolioATH(),
-            removalList: coinRemovalList
+            trailingStop: await this.getPortfolioATH()
         };
     }
 
@@ -1350,16 +1388,21 @@ export class Trade {
              * Check if the trailing stop should be triggered.
              */
             if (!portfolioATH.triggered) {
-                portfolioATH.triggered = ((portfolioATH.allTimeHigh / portfolioWorth) - 1) * 100 >= CONFIG.TRAILING_STOP.MAX_DROP;
+                /**
+                 * Measure the drop relative to the all-time high (value lost FROM the ATH), matching
+                 * the documented MAX_DROP semantics and the dashboard. The previous denominator
+                 * (current worth) tripped early — e.g. a configured 20% fired at a real ~16.7% drop.
+                 * allTimeHigh is > 0 here (investment > 0 and allTimeHigh was set to portfolioWorth).
+                 */
+                const dropTriggered = ((portfolioATH.allTimeHigh - portfolioWorth) / portfolioATH.allTimeHigh) * 100 >= CONFIG.TRAILING_STOP.MAX_DROP;
 
-                if (portfolioATH.triggered) {
-                    const currentDate = new Date();
-                    portfolioATH.resume = currentDate.setHours(currentDate.getHours() + CONFIG.TRAILING_STOP.RESUME);
-
+                if (dropTriggered) {
                     /**
                      * Sell all coins in the portfolio to the quote currency.
                      */
                     console.log("Trailing stop hit, selling portfolio");
+
+                    let allSold = true;
 
                     for (const coin of balance) {
                         const instrument = instruments.find((row) => {
@@ -1397,19 +1440,39 @@ export class Trade {
                         if (sold) {
                             console.log(`[SELL] ${coin.currency.toUpperCase()} for ${(this.Calculation.getOrderBookBidWorth(quantity, orderBook))} ${CONFIG.QUOTE}`);
                         }
+                        else {
+                            allSold = false;
+                        }
                     }
 
                     /**
-                     * Empty the coin removal list.
+                     * Only commit the triggered state and the trading pause once every position has
+                     * actually been liquidated. If any sell failed (rejected order, transient error),
+                     * leave triggered=false so the next trailing-stop check re-enters and re-attempts
+                     * the remaining coins — instead of pausing trading for RESUME hours while still
+                     * holding the very positions the stop exists to exit.
                      */
-                    await this.setCoinRemovalList([]);
+                    if (allSold) {
+                        portfolioATH.triggered = true;
 
-                    console.log(`Portfolio sold, trading will resume in ${CONFIG.TRAILING_STOP.RESUME} hours`);
+                        const currentDate = new Date();
+                        portfolioATH.resume = currentDate.setHours(currentDate.getHours() + CONFIG.TRAILING_STOP.RESUME);
 
-                    /**
-                     * Send a webhook message.
-                     */
-                    WebHook.sendToDiscord(null, EMessageType.TRAILING_STOP);
+                        /**
+                         * Empty the coin removal list.
+                         */
+                        await this.setCoinRemovalList([]);
+
+                        console.log(`Portfolio sold, trading will resume in ${CONFIG.TRAILING_STOP.RESUME} hours`);
+
+                        /**
+                         * Send a webhook message.
+                         */
+                        WebHook.sendToDiscord(null, EMessageType.TRAILING_STOP);
+                    }
+                    else {
+                        console.log("Trailing stop fired but one or more positions failed to sell; will retry on the next check");
+                    }
                 }
             }
         }

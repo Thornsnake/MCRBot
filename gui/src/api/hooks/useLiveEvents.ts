@@ -6,7 +6,6 @@ import {
   untrackSubscription,
 } from "../socket";
 import type {
-  CycleCompleteData,
   DistributionUpdateData,
   PortfolioUpdateData,
   TradeNewData,
@@ -107,7 +106,7 @@ export function useLiveEvents() {
     };
 
     // ---- cycle:complete ----
-    const onCycle = (_data: CycleCompleteData) => {
+    const onCycle = () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
       void queryClient.invalidateQueries({ queryKey: queryKeys.distribution });
       void queryClient.invalidateQueries({ queryKey: queryKeys.portfolio });

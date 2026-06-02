@@ -1,5 +1,5 @@
 import cronValidator from "cron-validator";
-import { CONFIG, DEFAULT_CONFIG, deepMerge, IConfig } from "../config.js";
+import { CONFIG, deepMerge, IConfig } from "../config.js";
 import { Database } from "./Database.js";
 
 /**
@@ -41,20 +41,29 @@ class ConfigStore {
             errors.push("QUOTE must be a non-empty currency code.");
         }
 
-        if (!(cfg.INVESTMENT > 0)) {
+        // Number.isFinite (not isFinite) rejects NaN/Infinity AND wrong types (a JSON string slips
+        // past the `<`/`>` comparisons otherwise, e.g. "abc" < 1 is false, and later breaks the math).
+        if (!Number.isFinite(cfg.INVESTMENT) || cfg.INVESTMENT <= 0) {
             errors.push("INVESTMENT must be larger than 0.");
         }
 
-        if (cfg.TOP < 0 || cfg.TOP > 250) {
-            errors.push("TOP must be between 0 and 250.");
+        if (!Number.isFinite(cfg.TOP) || cfg.TOP < 0 || cfg.TOP > 250) {
+            errors.push("TOP must be a number between 0 and 250.");
         }
 
-        if (cfg.REMOVAL < 0) {
+        if (!Number.isFinite(cfg.REMOVAL) || cfg.REMOVAL < 0) {
             errors.push("REMOVAL must be 0 or greater.");
         }
 
-        if (cfg.THRESHOLD < 1) {
+        if (!Number.isFinite(cfg.THRESHOLD) || cfg.THRESHOLD < 1) {
             errors.push("THRESHOLD can not be lower than 1%.");
+        }
+
+        for (const field of ["INCLUDE", "EXCLUDE"] as const) {
+            const arr = cfg[field];
+            if (!Array.isArray(arr) || arr.some((entry) => typeof entry !== "string" || entry.trim().length === 0)) {
+                errors.push(`${field} must be an array of non-empty currency codes.`);
+            }
         }
 
         const weightSum = Object.values(cfg.WEIGHT ?? {}).reduce((acc: number, cur) => acc + (cur as number), 0);
@@ -62,7 +71,7 @@ class ConfigStore {
             errors.push("The sum of all WEIGHT values exceeds 100%.");
         }
         for (const [coin, weight] of Object.entries(cfg.WEIGHT ?? {})) {
-            if (typeof weight !== "number") {
+            if (typeof weight !== "number" || !Number.isFinite(weight)) {
                 errors.push(`WEIGHT.${coin} must be a number.`);
             }
             else if (weight <= 0) {
@@ -73,27 +82,62 @@ class ConfigStore {
             }
         }
 
-        if (cfg.TRAILING_STOP.MIN_PROFIT < 1) {
-            errors.push("TRAILING_STOP.MIN_PROFIT must be 1% or larger.");
+        // Guard the nested objects before dereferencing — a PUT of {"TRAILING_STOP": null} would
+        // otherwise throw a TypeError and crash the handler with a 500 + stack trace.
+        if (!cfg.TRAILING_STOP || typeof cfg.TRAILING_STOP !== "object") {
+            errors.push("TRAILING_STOP is missing or not an object.");
         }
-        if (cfg.TRAILING_STOP.MAX_DROP < 1) {
-            errors.push("TRAILING_STOP.MAX_DROP must be 1% or larger.");
-        }
-        if (cfg.TRAILING_STOP.MIN_PROFIT <= cfg.TRAILING_STOP.MAX_DROP) {
-            errors.push("TRAILING_STOP.MIN_PROFIT must be larger than TRAILING_STOP.MAX_DROP.");
-        }
-        if (cfg.TRAILING_STOP.RESUME < 0) {
-            errors.push("TRAILING_STOP.RESUME can not be negative.");
+        else {
+            if (typeof cfg.TRAILING_STOP.ACTIVE !== "boolean") {
+                errors.push("TRAILING_STOP.ACTIVE must be a boolean (true or false).");
+            }
+            if (!Number.isFinite(cfg.TRAILING_STOP.MIN_PROFIT) || cfg.TRAILING_STOP.MIN_PROFIT < 1) {
+                errors.push("TRAILING_STOP.MIN_PROFIT must be 1% or larger.");
+            }
+            if (!Number.isFinite(cfg.TRAILING_STOP.MAX_DROP) || cfg.TRAILING_STOP.MAX_DROP < 1) {
+                errors.push("TRAILING_STOP.MAX_DROP must be 1% or larger.");
+            }
+            if (Number.isFinite(cfg.TRAILING_STOP.MIN_PROFIT) && Number.isFinite(cfg.TRAILING_STOP.MAX_DROP) && cfg.TRAILING_STOP.MIN_PROFIT <= cfg.TRAILING_STOP.MAX_DROP) {
+                errors.push("TRAILING_STOP.MIN_PROFIT must be larger than TRAILING_STOP.MAX_DROP.");
+            }
+            if (!Number.isFinite(cfg.TRAILING_STOP.RESUME) || cfg.TRAILING_STOP.RESUME < 0) {
+                errors.push("TRAILING_STOP.RESUME can not be negative.");
+            }
         }
 
-        if (!Number.isInteger(cfg.GUI.PORT) || cfg.GUI.PORT < 1 || cfg.GUI.PORT > 65535) {
-            errors.push("GUI.PORT must be an integer between 1 and 65535.");
+        const discord = cfg.WEBHOOKS?.DISCORD;
+        if (discord && discord.ACTIVE) {
+            if (typeof discord.URL !== "string" || !/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//i.test(discord.URL.trim())) {
+                errors.push("WEBHOOKS.DISCORD.URL must be a valid Discord webhook URL when DISCORD.ACTIVE is true.");
+            }
         }
-        if (typeof cfg.GUI.HOST !== "string" || cfg.GUI.HOST.trim().length === 0) {
-            errors.push("GUI.HOST must be a non-empty host.");
+
+        if (typeof cfg.DRY !== "boolean") {
+            errors.push("DRY must be a boolean (true or false).");
         }
-        if (cfg.GUI.POLL_INTERVAL < 20) {
-            errors.push("GUI.POLL_INTERVAL must be at least 20 seconds.");
+        if (typeof cfg.AUTO_UPDATE !== "boolean") {
+            errors.push("AUTO_UPDATE must be a boolean (true or false).");
+        }
+
+        if (!cfg.GUI || typeof cfg.GUI !== "object") {
+            errors.push("GUI is missing or not an object.");
+        }
+        else {
+            if (typeof cfg.GUI.ACTIVE !== "boolean") {
+                errors.push("GUI.ACTIVE must be a boolean (true or false).");
+            }
+            if (typeof cfg.GUI.ALLOW_CONFIG !== "boolean") {
+                errors.push("GUI.ALLOW_CONFIG must be a boolean (true or false).");
+            }
+            if (!Number.isInteger(cfg.GUI.PORT) || cfg.GUI.PORT < 1 || cfg.GUI.PORT > 65535) {
+                errors.push("GUI.PORT must be an integer between 1 and 65535.");
+            }
+            if (typeof cfg.GUI.HOST !== "string" || cfg.GUI.HOST.trim().length === 0) {
+                errors.push("GUI.HOST must be a non-empty host.");
+            }
+            if (!Number.isFinite(cfg.GUI.POLL_INTERVAL) || cfg.GUI.POLL_INTERVAL < 20) {
+                errors.push("GUI.POLL_INTERVAL must be at least 20 seconds.");
+            }
         }
 
         return errors;
@@ -170,9 +214,6 @@ function maskSecret(value: string): string {
     }
     return "****" + value.slice(-4);
 }
-
-// Silence unused-import warnings for DEFAULT_CONFIG (kept exported for the GUI's "reset" affordance).
-void DEFAULT_CONFIG;
 
 const _ConfigStore = new ConfigStore();
 export { _ConfigStore as ConfigStore };

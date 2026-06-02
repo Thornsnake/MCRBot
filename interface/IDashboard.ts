@@ -1,4 +1,3 @@
-import { ICoinRemoval } from "./ICoinRemoval.js";
 import { IDistributionDelta } from "./IDistributionDelta.js";
 import { IPortfolioATH } from "./IPortfolioATH.js";
 
@@ -27,5 +26,4 @@ export interface ICycleSnapshot {
     availableFunds: number;
     distribution: IDistributionDelta[];
     trailingStop: IPortfolioATH;
-    removalList: ICoinRemoval[];
 }

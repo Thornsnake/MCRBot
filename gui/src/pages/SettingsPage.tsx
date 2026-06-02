@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Bell,
   Clock,
@@ -29,7 +29,6 @@ const POST_LABELS: Record<keyof DiscordPostConfig, string> = {
   INVEST: "Invest",
   REBALANCE_MARKET_CAP: "Rebalance (market cap)",
   REBALANCE_OVERPERFORMERS: "Rebalance (overperformers)",
-  REBALANCE_UNDERPERFORMERS: "Rebalance (underperformers)",
   TRAILING_STOP: "Trailing stop",
   ARMED: "Armed",
   CONTINUE: "Continue",
@@ -49,13 +48,16 @@ export default function SettingsPage() {
   const [apiKeyDraft, setApiKeyDraft] = useState<string | null>(null);
   const [secretDraft, setSecretDraft] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (config) {
-      setForm(deepClone(config));
-      setApiKeyDraft(null);
-      setSecretDraft(null);
-    }
-  }, [config]);
+  // Re-initialise the editable form whenever a freshly fetched config arrives (initial load and the
+  // refetch after a save). Done during render via an identity guard rather than an effect, per the
+  // React "you might not need an effect" guidance.
+  const [syncedConfig, setSyncedConfig] = useState<BotConfig | null>(null);
+  if (config && config !== syncedConfig) {
+    setSyncedConfig(config);
+    setForm(deepClone(config));
+    setApiKeyDraft(null);
+    setSecretDraft(null);
+  }
 
   const allowConfig = config?.GUI?.ALLOW_CONFIG ?? true;
 

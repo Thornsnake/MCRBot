@@ -16,6 +16,12 @@ export class Calculation {
             const price = bid[0];
             const quantity = bid[1];
 
+            // Defence in depth: ignore any malformed level so a stray NaN cannot poison the
+            // accumulator and the `currencyAmount <= 0` break (Book.all already sanitizes levels).
+            if (!Number.isFinite(price) || !Number.isFinite(quantity)) {
+                continue;
+            }
+
             if (quantity <= currencyAmount) {
                 currencyWorth += quantity * price;
             }
@@ -199,15 +205,27 @@ export class Calculation {
     }
 
     public fixNotional(instrument: IInstrument, notional: number) {
-        return Math.floor(notional * Math.pow(10, instrument.price_decimals)) / Math.pow(10, instrument.price_decimals);
+        // Nudge by a tiny epsilon (far below any real tick) before flooring so values whose scaled
+        // product lands just under an integer in binary floating point (e.g. 0.29*100 = 28.9999…)
+        // are not floored a whole tick too low.
+        const factor = Math.pow(10, instrument.price_decimals);
+        return Math.floor(notional * factor + 1e-9) / factor;
     }
 
     public fixQuantity(instrument: IInstrument, quantity: number) {
-        return Math.floor(quantity * Math.pow(10, instrument.quantity_decimals)) / Math.pow(10, instrument.quantity_decimals);
+        const factor = Math.pow(10, instrument.quantity_decimals);
+        return Math.floor(quantity * factor + 1e-9) / factor;
     }
 
     public minimumBuyNotional(instrument: IInstrument, book: IBook) {
         const minPriceNotional = (1 / Math.pow(10, instrument.price_decimals)) * 1.1;
+
+        // Guard against a missing/empty asks side (Book.all already drops such books, but this keeps
+        // the function safe for any caller). Fall back to the price-only minimum.
+        if (!book.asks || book.asks.length === 0 || !Number.isFinite(book.asks[0]?.[0])) {
+            return minPriceNotional;
+        }
+
         const minQuantityNotional = (book.asks[0][0] / Math.pow(10, instrument.quantity_decimals)) * 1.1;
 
         return minPriceNotional > minQuantityNotional ? minPriceNotional : minQuantityNotional;

@@ -18,13 +18,16 @@ fi
 # Get the name of the bot
 read -r name < bot.name;
 
-# Check if the bot is in the process list
-if ! pm2 list | grep "$name" >/dev/null 2>&1
+# Check if the bot is registered with pm2 (exact name match).
+if ! pm2 describe "$name" >/dev/null 2>&1
 then
     sh start.sh
 else
     # Compile the typescript files to javascript
-    ./node_modules/.bin/tsc;
+    if ! ./node_modules/.bin/tsc; then
+        echo "[ERROR] Compilation failed; not restarting (the running bot keeps the previous build).";
+        exit 1;
+    fi
 
     # Restart the bot
     pm2 restart "$name";

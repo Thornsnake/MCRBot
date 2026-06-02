@@ -135,25 +135,12 @@ export interface PortfolioState {
   removalList: RemovalEntry[];
 }
 
-export interface PortfolioEvent {
-  event_id: number;
-  timestamp: number;
-  type: string;
-  coin: string | null;
-  message: string | null;
-}
-
-export interface PortfolioEventsResponse {
-  events: PortfolioEvent[];
-}
-
 // ---------- Config ----------
 
 export interface DiscordPostConfig {
   INVEST: boolean;
   REBALANCE_MARKET_CAP: boolean;
   REBALANCE_OVERPERFORMERS: boolean;
-  REBALANCE_UNDERPERFORMERS: boolean;
   TRAILING_STOP: boolean;
   ARMED: boolean;
   CONTINUE: boolean;

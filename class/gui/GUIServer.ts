@@ -45,6 +45,17 @@ class GUIServer {
         const port = CONFIG.GUI.PORT;
         const host = CONFIG.GUI.HOST;
 
+        // Fail soft on an invalid persisted port/host instead of letting listen() throw — the bot
+        // keeps trading without the dashboard, which can then be fixed once it is reachable again.
+        if (!Number.isInteger(port) || port < 1 || port > 65535) {
+            console.error(`[GUI] Invalid GUI.PORT (${port}); dashboard not started. Fix it in the configuration.`);
+            return;
+        }
+        if (typeof host !== "string" || host.trim().length === 0) {
+            console.error(`[GUI] Invalid GUI.HOST; dashboard not started. Fix it in the configuration.`);
+            return;
+        }
+
         // Wire the bot into the bridge + control surface.
         BotControl.setTrade(deps.trade);
         BotControl.setReconfigure(deps.onReconfigure);
@@ -82,10 +93,22 @@ class GUIServer {
             }
         });
 
+        // Final error handler: return a clean 500 rather than leaking a stack trace (Express writes
+        // the stack into the response body in non-production mode). A throw/rejection from any route
+        // handler above lands here.
+        this._app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+            console.error("[GUI] Unhandled route error:", err);
+            if (!res.headersSent) {
+                res.status(500).json({ error: "Internal server error." });
+            }
+        });
+
         // Socket.IO — single "dashboard" room. Require a valid token only once a password is set.
         this._io.on("connection", (socket) => {
             if (Auth.isPasswordSet()) {
-                const token = (socket.handshake.auth?.["token"] || socket.handshake.query?.["token"]) as string | undefined;
+                // Only accept the token from the handshake auth payload, never from the URL query
+                // string (which would leak the secret token into proxy/access logs).
+                const token = socket.handshake.auth?.["token"] as string | undefined;
                 if (!Auth.isValidToken(token)) {
                     socket.disconnect(true);
                     return;

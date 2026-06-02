@@ -33,19 +33,41 @@ export class Book {
                 const result = settled.value.data?.result;
                 const data = result?.data?.[0];
 
-                if (!result || !data || !data.bids || !data.asks) {
+                if (!result || !data || !Array.isArray(data.bids) || !Array.isArray(data.asks)) {
+                    continue;
+                }
+
+                /**
+                 * v1 returns each price level as a 3-element string array
+                 * ["price", "quantity", "num_orders"]. Convert to numbers and drop any malformed
+                 * level (wrong length, non-finite, non-positive price, or negative quantity) so a
+                 * single bad field cannot poison the order-book math (NaN/Infinity) or be sent as an
+                 * order amount.
+                 */
+                const sanitize = (levels: string[][]) =>
+                    levels
+                        .map((level) => level.map(Number))
+                        .filter((level) => level.length >= 2
+                            && Number.isFinite(level[0]) && level[0] > 0
+                            && Number.isFinite(level[1]) && level[1] >= 0);
+
+                const bids = sanitize(data.bids);
+                const asks = sanitize(data.asks);
+
+                /**
+                 * Skip a book with no usable level on either side (illiquid / one-sided / empty).
+                 * Every consumer already guards a missing book, so the affected coin is simply
+                 * skipped — what the allSettled design intends. This also keeps the level-0 accesses
+                 * (bids[0][0] / asks[0][0]) downstream from ever throwing or reading NaN.
+                 */
+                if (bids.length === 0 || asks.length === 0) {
                     continue;
                 }
 
                 books.push({
                     i: result.instrument_name,
-                    /**
-                     * v1 returns each price level as a 3-element string array
-                     * ["price", "quantity", "num_orders"]. Convert to numbers so all downstream
-                     * math keeps working on numeric values.
-                     */
-                    bids: data.bids.map((level: string[]) => level.map(Number)),
-                    asks: data.asks.map((level: string[]) => level.map(Number)),
+                    bids: bids,
+                    asks: asks,
                     t: data.t
                 });
             }

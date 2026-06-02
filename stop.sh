@@ -18,11 +18,11 @@ fi
 # Get the name of the bot
 read -r name < bot.name;
 
-# Check if the bot is in the process list
-if pm2 list | grep "$name" >/dev/null 2>&1
+# Check if the bot is registered with pm2 (exact name match).
+if pm2 describe "$name" >/dev/null 2>&1
 then
     # Stop the bot
     pm2 stop "$name";
 
-    echo "[OK] "$name" stopped!";
+    echo "[OK] $name stopped!";
 fi

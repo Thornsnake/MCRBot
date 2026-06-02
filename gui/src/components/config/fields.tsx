@@ -76,7 +76,12 @@ export function NumberInput({
         value={Number.isFinite(value) ? value : 0}
         step={step ?? "any"}
         min={min}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        onChange={(e) => {
+          // Clearing the field yields parseFloat("") = NaN; coerce to 0 so NaN never enters the
+          // form state (it would otherwise serialize to null on save and corrupt the config).
+          const n = parseFloat(e.target.value);
+          onChange(Number.isFinite(n) ? n : 0);
+        }}
         className={`${inputBase} font-mono ${error ? "border-accent-red" : "border-border"}`}
       />
       {hint && !error && <span className="text-xs text-text-muted">{hint}</span>}
@@ -327,7 +332,10 @@ export function WeightEditor({
               type="number"
               step="any"
               value={Number.isFinite(pct) ? pct : 0}
-              onChange={(e) => setOne(coin, parseFloat(e.target.value))}
+              onChange={(e) => {
+                const n = parseFloat(e.target.value);
+                setOne(coin, Number.isFinite(n) ? n : 0);
+              }}
               className={`${inputBase} w-28 border-border font-mono`}
             />
             <span className="text-xs text-text-muted">%</span>
