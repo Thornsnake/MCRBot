@@ -12,7 +12,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
     "axios": "^1.13.5",
-    "echarts": "^5.6.0",
+    "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.2",
     "lightweight-charts": "^5.1.0",
     "lucide-react": "^0.575.0",
