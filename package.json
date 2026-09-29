@@ -31,5 +31,8 @@
     "socket.io": "^4.8.1",
     "typescript": "^5.7.2"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
 }
